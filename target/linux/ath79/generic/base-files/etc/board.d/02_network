@@ -46,6 +46,12 @@ ath79_setup_interfaces()
 	netgear,ex7300|\
 	ocedo,koala|\
 	ocedo,raccoon|\
+	openmesh,mr600-v1|\
+	openmesh,mr600-v2|\
+	openmesh,mr900-v1|\
+	openmesh,mr900-v2|\
+	openmesh,mr1750-v1|\
+	openmesh,mr1750-v2|\
 	pcs,cap324|\
 	pisen,ts-d084|\
 	pisen,wmb001n|\
@@ -66,6 +72,7 @@ ath79_setup_interfaces()
 	tplink,re450-v2|\
 	tplink,re450-v3|\
 	tplink,tl-wr902ac-v1|\
+	ubnt,bullet-ac|\
 	ubnt,bullet-m-ar7240|\
 	ubnt,bullet-m-ar7241|\
 	ubnt,bullet-m-xw|\

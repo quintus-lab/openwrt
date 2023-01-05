@@ -1,6 +1,6 @@
-DEVICE_VARS += SENAO_IMGNAME
+DEVICE_VARS += SENAO_IMGNAME WATCHGUARD_MAGIC
 
-# This needs to make /tmp/_sys/sysupgrade.tgz an empty file prior to
+# This needs to make OEM config archive 'sysupgrade.tgz' an empty file prior to OEM
 # sysupgrade, as otherwise it will implant the old configuration from
 # OEM firmware when writing rootfs from factory.bin
 # rootfs size and checksum is taken from a squashfs header
@@ -9,7 +9,9 @@ define Build/senao-tar-gz
 	-[ -f "$@" ] && \
 	mkdir -p $@.tmp && \
 	touch $@.tmp/failsafe.bin && \
+	touch $@.tmp/FWINFO-$(word 1,$(1))-$(REVISION) && \
 	echo '#!/bin/sh' > $@.tmp/before-upgrade.sh && \
+	echo ': > /tmp/sysupgrade.tgz' >> $@.tmp/before-upgrade.sh && \
 	echo ': > /tmp/_sys/sysupgrade.tgz' >> $@.tmp/before-upgrade.sh && \
 	echo -n $$(( $$(cat $@ | wc -c) / 4096 * 4096 )) > $@.len && \
 	dd if=$@ bs=$$(cat $@.len) count=1 | md5sum - | cut -d ' ' -f 1 > $@.md5 && \
@@ -23,6 +25,13 @@ define Build/senao-tar-gz
 		$(if $(SOURCE_DATE_EPOCH),--mtime="@$(SOURCE_DATE_EPOCH)") \
 		-C $@.tmp . | gzip -9n > $@ && \
 	rm -rf $@.tmp $@.len $@.md5
+endef
+
+define Build/watchguard-cksum
+	-echo -n $(word 1,$(1)) | cat $@ - | md5sum | \
+		cut -d ' ' -f1 | tr -d '\n' > $@.md5 && \
+	cat $@.md5 >> $@ && \
+	rm -rf $@.md5
 endef
 
 define Device/senao_loader_okli

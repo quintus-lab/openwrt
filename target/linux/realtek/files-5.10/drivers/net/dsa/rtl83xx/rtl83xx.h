@@ -67,8 +67,8 @@ typedef enum {
 void rtl_table_init(void);
 struct table_reg *rtl_table_get(rtl838x_tbl_reg_t r, int t);
 void rtl_table_release(struct table_reg *r);
-void rtl_table_read(struct table_reg *r, int idx);
-void rtl_table_write(struct table_reg *r, int idx);
+int rtl_table_read(struct table_reg *r, int idx);
+int rtl_table_write(struct table_reg *r, int idx);
 inline u16 rtl_table_data(struct table_reg *r, int i);
 inline u32 rtl_table_data_r(struct table_reg *r, int i);
 inline void rtl_table_data_w(struct table_reg *r, u32 v, int i);
@@ -121,10 +121,17 @@ irqreturn_t rtl839x_switch_irq(int irq, void *dev_id);
 void rtl930x_vlan_profile_dump(int index);
 int rtl9300_sds_power(int mac, int val);
 void rtl9300_sds_rst(int sds_num, u32 mode);
+int rtl9300_serdes_setup(int sds_num, phy_interface_t phy_mode);
 void rtl930x_print_matrix(void);
 
 /* RTL931x-specific */
 irqreturn_t rtl931x_switch_irq(int irq, void *dev_id);
+int rtl931x_sds_cmu_band_get(int sds, phy_interface_t mode);
+int rtl931x_sds_cmu_band_set(int sds, bool enable, u32 band, phy_interface_t mode);
+void rtl931x_sds_init(u32 sds, phy_interface_t mode);
+
+int rtl83xx_lag_add(struct dsa_switch *ds, int group, int port, struct netdev_lag_upper_info *info);
+int rtl83xx_lag_del(struct dsa_switch *ds, int group, int port);
 
 #endif /* _NET_DSA_RTL83XX_H */
 

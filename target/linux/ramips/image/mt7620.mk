@@ -75,10 +75,23 @@ define Device/amit_jboot
   DEVICE_PACKAGES := jboot-tools kmod-usb2 kmod-usb-ohci
 endef
 
+define Device/ampedwireless_b1200ex
+  SOC := mt7620a
+  DEVICE_VENDOR := Amped Wireless
+  DEVICE_MODEL := B1200EX
+  BLOCKSIZE := 4k
+  IMAGE_SIZE := 7744k
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | \
+	edimax-header -s CSYS -m RN10 -f 0x70000 -S 0x01100000 | pad-rootfs | \
+	check-size | append-metadata
+  DEVICE_PACKAGES := kmod-mt76x2 kmod-phy-realtek
+endef
+TARGET_DEVICES += ampedwireless_b1200ex
+
 define Device/asus_rp-n53
   SOC := mt7620a
   IMAGE_SIZE := 7872k
-  DEVICE_VENDOR := Asus
+  DEVICE_VENDOR := ASUS
   DEVICE_MODEL := RP-N53
   DEVICE_PACKAGES := kmod-rt2800-pci
   SUPPORTED_DEVICES += rp-n53
@@ -88,7 +101,7 @@ TARGET_DEVICES += asus_rp-n53
 define Device/asus_rt-ac51u
   SOC := mt7620a
   IMAGE_SIZE := 16064k
-  DEVICE_VENDOR := Asus
+  DEVICE_VENDOR := ASUS
   DEVICE_MODEL := RT-AC51U
   DEVICE_PACKAGES := kmod-mt76x0e kmod-usb2 kmod-usb-ohci \
 	kmod-usb-ledtrig-usbport
@@ -99,7 +112,7 @@ TARGET_DEVICES += asus_rt-ac51u
 define Device/asus_rt-ac54u
   SOC := mt7620a
   IMAGE_SIZE := 16064k
-  DEVICE_VENDOR := Asus
+  DEVICE_VENDOR := ASUS
   DEVICE_MODEL := RT-AC54U
   DEVICE_PACKAGES := kmod-mt76x2 kmod-usb2 kmod-usb-ohci \
 	kmod-usb-ledtrig-usbport
@@ -109,7 +122,7 @@ TARGET_DEVICES += asus_rt-ac54u
 define Device/asus_rt-n12p
   SOC := mt7620n
   IMAGE_SIZE := 16064k
-  DEVICE_VENDOR := Asus
+  DEVICE_VENDOR := ASUS
   DEVICE_MODEL := RT-N11P/RT-N12+/RT-N12Eb1
   SUPPORTED_DEVICES += rt-n12p
 endef
@@ -118,7 +131,7 @@ TARGET_DEVICES += asus_rt-n12p
 define Device/asus_rt-n14u
   SOC := mt7620n
   IMAGE_SIZE := 16064k
-  DEVICE_VENDOR := Asus
+  DEVICE_VENDOR := ASUS
   DEVICE_MODEL := RT-N14u
   DEVICE_PACKAGES := kmod-usb2 kmod-usb-ohci
   SUPPORTED_DEVICES += rt-n14u
@@ -313,6 +326,21 @@ define Device/dlink_dwr-960
 	kmod-mt76x0e
 endef
 TARGET_DEVICES += dlink_dwr-960
+
+define Device/dlink_dwr-961-a1
+  $(Device/amit_jboot)
+  SOC := mt7620a
+  IMAGE_SIZE := 16256k
+  DEVICE_VENDOR := D-Link
+  DEVICE_MODEL := DWR-961
+  DEVICE_VARIANT := A1
+  DLINK_ROM_ID := DLK6E3813001
+  DLINK_FAMILY_MEMBER := 0x6E38
+  DLINK_FIRMWARE_SIZE := 0xFE0000
+  DEVICE_PACKAGES += kmod-mt76x2 kmod-usb-net-qmi-wwan kmod-usb-serial-option \
+	uqmi
+endef
+TARGET_DEVICES += dlink_dwr-961-a1
 
 define Device/domywifi_dm202
   SOC := mt7620a
@@ -714,6 +742,16 @@ define Device/microduino_microwrt
 endef
 TARGET_DEVICES += microduino_microwrt
 
+define Device/netcore_nw5212
+  SOC := mt7620a
+  IMAGE_SIZE := 16064k
+  BLOCKSIZE := 4k
+  DEVICE_VENDOR := Netcore
+  DEVICE_MODEL := NW5212
+  DEVICE_PACKAGES := kmod-usb2 kmod-usb-ohci
+endef
+TARGET_DEVICES += netcore_nw5212
+
 define Device/netgear_ex2700
   SOC := mt7620a
   NETGEAR_HW_ID := 29764623+4+0+32+2x2+0
@@ -787,6 +825,21 @@ define Device/netgear_jwnr2010-v5
 endef
 TARGET_DEVICES += netgear_jwnr2010-v5
 
+define Device/netgear_pr2000
+  $(Device/netgear_sercomm_nor)
+  SOC := mt7620n
+  BLOCKSIZE := 4k
+  IMAGE_SIZE := 15488k
+  DEVICE_MODEL := PR2000
+  DEVICE_PACKAGES := kmod-usb2 kmod-usb-ohci
+  SERCOMM_HWNAME := PR2000
+  SERCOMM_HWID := AQ7
+  SERCOMM_HWVER := A001
+  SERCOMM_SWVER := 0x0000
+  SERCOMM_PAD := 640k
+endef
+TARGET_DEVICES += netgear_pr2000
+
 define Device/netgear_wn3000rp-v3
   SOC := mt7620a
   IMAGE_SIZE := 7872k
@@ -803,6 +856,22 @@ define Device/netgear_wn3000rp-v3
   SUPPORTED_DEVICES += wn3000rpv3
 endef
 TARGET_DEVICES += netgear_wn3000rp-v3
+
+define Device/netgear_wn3100rp-v2
+  SOC := mt7620a
+  IMAGE_SIZE := 7872k
+  NETGEAR_HW_ID := 29764883+8+0+32+2x2+0
+  NETGEAR_BOARD_ID := WN3100RPv2
+  BLOCKSIZE := 4k
+  IMAGES += factory.bin
+  KERNEL := $(KERNEL_DTB) | uImage lzma | pad-offset 64k 64 | \
+	append-uImage-fakehdr filesystem
+  IMAGE/factory.bin := $$(sysupgrade_bin) | check-size | netgear-dni
+  DEVICE_VENDOR := NETGEAR
+  DEVICE_MODEL := WN3100RP
+  DEVICE_VARIANT := v2
+endef
+TARGET_DEVICES += netgear_wn3100rp-v2
 
 define Device/netis_wf2770
   SOC := mt7620a
@@ -1035,6 +1104,17 @@ define Device/sitecom_wlr-4100-v1-002
 endef
 TARGET_DEVICES += sitecom_wlr-4100-v1-002
 
+define Device/snr_cpe-w4n-mt
+  $(Device/uimage-lzma-loader)
+  SOC := mt7620n
+  IMAGE_SIZE := 7360k
+  DEVICE_VENDOR := SNR
+  DEVICE_MODEL := CPE-W4N
+  DEVICE_VARIANT := MT
+  UIMAGE_NAME := SNR-CPE-W4N-MT
+endef
+TARGET_DEVICES += snr_cpe-w4n-mt
+
 define Device/tplink_archer-c20i
   $(Device/tplink-v2)
   SOC := mt7620a
@@ -1165,6 +1245,18 @@ define Device/wavlink_wl-wn530hg4
 endef
 TARGET_DEVICES += wavlink_wl-wn530hg4
 
+define Device/wavlink_wl-wn535k1
+  SOC := mt7620a
+  IMAGE_SIZE := 7360k
+  DEVICE_VENDOR := Wavlink
+  DEVICE_MODEL := WL-WN535K1
+  DEVICE_ALT0_VENDOR := Talius
+  DEVICE_ALT0_MODEL := TAL-WMESH1
+  KERNEL_INITRAMFS_SUFFIX := -WN535K1$$(KERNEL_SUFFIX)
+  DEVICE_PACKAGES := kmod-mt76x2 kmod-phy-realtek
+endef
+TARGET_DEVICES += wavlink_wl-wn535k1
+
 define Device/wavlink_wl-wn579x3
   SOC := mt7620a
   IMAGE_SIZE := 7744k
@@ -1205,6 +1297,18 @@ define Device/xiaomi_miwifi-mini
 endef
 TARGET_DEVICES += xiaomi_miwifi-mini
 
+define Device/youku_x2
+  SOC := mt7620a
+  IMAGE_SIZE := 16064k
+  DEVICE_VENDOR := Youku
+  DEVICE_MODEL := X2
+  DEVICE_PACKAGES := kmod-mt76x2 kmod-usb2 kmod-usb-ohci \
+	kmod-sdhci-mt7620 kmod-usb-ledtrig-usbport
+  UIMAGE_MAGIC := 0x12291000
+  UIMAGE_NAME := 400000000000000000001000
+endef
+TARGET_DEVICES += youku_x2
+
 define Device/youku_yk-l1
   SOC := mt7620a
   IMAGE_SIZE := 32448k
@@ -1213,6 +1317,8 @@ define Device/youku_yk-l1
   DEVICE_PACKAGES := kmod-usb2 kmod-usb-ohci kmod-sdhci-mt7620 \
 	kmod-usb-ledtrig-usbport
   SUPPORTED_DEVICES += youku-yk1 youku,yk1
+  UIMAGE_MAGIC := 0x12291000
+  UIMAGE_NAME := 400000000000000000000000
 endef
 TARGET_DEVICES += youku_yk-l1
 
@@ -1223,6 +1329,8 @@ define Device/youku_yk-l1c
   DEVICE_MODEL := YK-L1c
   DEVICE_PACKAGES := kmod-usb2 kmod-usb-ohci kmod-sdhci-mt7620 \
 	kmod-usb-ledtrig-usbport
+  UIMAGE_MAGIC := 0x12291000
+  UIMAGE_NAME := 400000000000000000000000
 endef
 TARGET_DEVICES += youku_yk-l1c
 

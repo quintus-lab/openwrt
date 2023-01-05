@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=gdb
-PKG_VERSION:=11.1
+PKG_VERSION:=12.1
 PKG_RELEASE:=$(AUTORELEASE)
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@GNU/gdb
-PKG_HASH:=cccfcc407b20d343fb320d4a9a2110776dd3165118ffd41f4b1b162340333f94
+PKG_HASH:=0e1793bf8f2b54d53f46dea84ccfd446f48f81b297b28c4f7fc017b818d69fed
 
 PKG_BUILD_PARALLEL:=1
 PKG_INSTALL:=1
@@ -66,6 +66,7 @@ CONFIGURE_ARGS+= \
 	--without-mpc \
 	--without-mpfr \
 	--without-isl \
+	--without-xxhash \
 	--with-libgmp-prefix=$(STAGING_DIR)/usr
 
 CONFIGURE_VARS+= \

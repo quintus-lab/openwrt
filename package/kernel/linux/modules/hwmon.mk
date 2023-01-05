@@ -213,6 +213,23 @@ endef
 $(eval $(call KernelPackage,hwmon-lm63))
 
 
+define KernelPackage/hwmon-lm70
+  TITLE:=LM70 monitoring support
+  KCONFIG:=CONFIG_SENSORS_LM70 \
+        CONFIG_SPI=y \
+        CONFIG_SPI_MASTER=y
+  FILES:=$(LINUX_DIR)/drivers/hwmon/lm70.ko
+  AUTOLOAD:=$(call AutoProbe,lm70)
+  $(call AddDepends/hwmon)
+endef
+
+define KernelPackage/hwmon-lm70/description
+ Kernel module for lm70 and compatible thermal monitor chip
+endef
+
+$(eval $(call KernelPackage,hwmon-lm70))
+
+
 define KernelPackage/hwmon-lm75
   TITLE:=LM75 monitoring support
   KCONFIG:=CONFIG_SENSORS_LM75
@@ -457,6 +474,21 @@ endef
 $(eval $(call KernelPackage,hwmon-sht21))
 
 
+define KernelPackage/hwmon-sht3x
+  TITLE:=Sensiron SHT3x and compat. monitoring support
+  KCONFIG:=CONFIG_SENSORS_SHT3x
+  FILES:=$(LINUX_DIR)/drivers/hwmon/sht3x.ko
+  AUTOLOAD:=$(call AutoProbe,sht3x)
+  $(call AddDepends/hwmon,+kmod-i2c-core +kmod-lib-crc8)
+endef
+
+define KernelPackage/hwmon-sht3x/description
+ Kernel module for Sensirion SHT3x temperature and humidity sensors chip
+endef
+
+$(eval $(call KernelPackage,hwmon-sht3x))
+
+
 define KernelPackage/hwmon-tmp102
   TITLE:=Texas Instruments TMP102 monitoring support
   KCONFIG:=CONFIG_SENSORS_TMP102
@@ -501,6 +533,20 @@ endef
 
 $(eval $(call KernelPackage,hwmon-tmp421))
 
+
+define KernelPackage/hwmon-tps23861
+  TITLE:=Texas Instruments TPS23861 PoE PSE
+  KCONFIG:=CONFIG_SENSORS_TPS23861
+  FILES:=$(LINUX_DIR)/drivers/hwmon/tps23861.ko
+  AUTOLOAD:=$(call AutoProbe,tps23861)
+  $(call AddDepends/hwmon,+kmod-i2c-core +kmod-regmap-i2c)
+endef
+
+define KernelPackage/hwmon-tps23861/description
+  Kernel module for the Texas Instruments TPS23861 802.3at PoE PSE chips.
+endef
+
+$(eval $(call KernelPackage,hwmon-tps23861))
 
 define KernelPackage/hwmon-vid
   TITLE:=VID/VRM/VRD voltage conversion module.

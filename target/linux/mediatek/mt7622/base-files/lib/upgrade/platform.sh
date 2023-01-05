@@ -1,6 +1,4 @@
 REQUIRE_IMAGE_METADATA=1
-RAMFS_COPY_BIN='fw_printenv fw_setenv fwtool'
-RAMFS_COPY_DATA='/etc/fw_env.config /var/lock/fw_printenv.lock'
 
 platform_do_upgrade() {
 	local board=$(board_name)
@@ -8,8 +6,8 @@ platform_do_upgrade() {
 
 	case "$board" in
 	bananapi,bpi-r64)
-		export_bootdevice
-		export_partdevice rootdev 0
+		local rootdev="$(cmdline_get_var root)"
+		rootdev="${rootdev##*/}"
 		case "$rootdev" in
 		mmc*)
 			CI_ROOTDEV="$rootdev"
@@ -34,6 +32,12 @@ platform_do_upgrade() {
 			nand_do_upgrade "$1"
 		fi
 		;;
+	elecom,wrc-x3200gst3|\
+	mediatek,mt7622-rfb1-ubi|\
+	totolink,a8000ru|\
+	xiaomi,redmi-router-ax6s)
+		nand_do_upgrade "$1"
+		;;
 	linksys,e8450-ubi)
 		CI_KERNPART="fit"
 		nand_do_upgrade "$1"
@@ -45,10 +49,6 @@ platform_do_upgrade() {
 			PART_NAME=firmware1
 		fi
 		default_do_upgrade "$1"
-		;;
-	mediatek,mt7622-rfb1-ubi|\
-	totolink,a8000ru)
-		nand_do_upgrade "$1"
 		;;
 	*)
 		default_do_upgrade "$1"
@@ -68,8 +68,10 @@ platform_check_image() {
 	buffalo,wsr-2533dhp2)
 		buffalo_check_image "$board" "$magic" "$1" || return 1
 		;;
+	elecom,wrc-x3200gst3|\
 	mediatek,mt7622-rfb1-ubi|\
-	totolink,a8000ru)
+	totolink,a8000ru|\
+	xiaomi,redmi-router-ax6s)
 		nand_do_platform_check "$board" "$1"
 		;;
 	*)

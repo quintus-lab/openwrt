@@ -1,20 +1,21 @@
-# Copyright (C) 2015 OpenWrt.org
+# SPDX-License-Identifier: GPL-2.0-only
 #
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
+# Copyright (C) 2015 OpenWrt.org
 #
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=nftables
-PKG_VERSION:=1.0.1
+PKG_VERSION:=1.0.5
 PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=https://netfilter.org/projects/$(PKG_NAME)/files
-PKG_HASH:=3ceeba625818e81a0be293e9dd486c3ef799ebd92165270f1e57e9a201efa423
+PKG_HASH:=8d1b4b18393af43698d10baa25d2b9b6397969beecac7816c35dd0714e4de50a
+
 PKG_MAINTAINER:=
 PKG_LICENSE:=GPL-2.0
+PKG_LICENSE_FILES:=COPYING
 
 PKG_FIXUP:=autoreconf
 PKG_INSTALL:=1
@@ -45,6 +46,7 @@ define Package/nftables-nojson
   TITLE+= no JSON support
   VARIANT:=nojson
   DEFAULT_VARIANT:=1
+  CONFLICTS:=nftables-json
 endef
 
 define Package/nftables-json

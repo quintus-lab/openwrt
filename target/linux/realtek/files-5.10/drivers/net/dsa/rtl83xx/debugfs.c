@@ -45,6 +45,7 @@
 #define RTL838X_STAT_PRVTE_DROP_COUNTERS	(0x6A00)
 #define RTL839X_STAT_PRVTE_DROP_COUNTERS	(0x3E00)
 #define RTL930X_STAT_PRVTE_DROP_COUNTERS	(0xB5B8)
+#define RTL931X_STAT_PRVTE_DROP_COUNTERS	(0xd800)
 
 int rtl83xx_port_get_stp_state(struct rtl838x_switch_priv *priv, int port);
 void rtl83xx_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
@@ -104,6 +105,25 @@ const char *rtl930x_drop_cntr[] = {
 	"MIRROR_ISOLATE", "RX_FC", "EGR_QUEUE", "HSM_RUNOUT", "ROUTING_DISABLE", "INVALID_L2_NEXTHOP_ENTRY",
 	"L3_MC_SRC_FLT", "CPUTAG_FLT", "FWD_PMSK_NULL", "IPUC_ROUTING_LOOKUP_MISS", "MY_DEV_DROP",
 	"STACK_NONUC_BLOCKING_PMSK", "STACK_PORT_NOT_FOUND", "ACL_LOOPBACK_DROP", "IP6_ROUTING_EXT_HEADER"
+};
+
+const char *rtl931x_drop_cntr[] = {
+	"ALE_RX_GOOD_PKTS", "RX_MAX_FRAME_SIZE", "MAC_RX_DROP", "OPENFLOW_IP_MPLS_TTL", "OPENFLOW_TBL_MISS",
+	"IGR_BW", "SPECIAL_CONGEST", "EGR_QUEUE", "RESERVED", "EGR_LINK_STATUS", "STACK_UCAST_NONUCAST_TTL", // 10
+	"STACK_NONUC_BLOCKING_PMSK", "L2_CRC", "SRC_PORT_FILTER", "PARSER_PACKET_TOO_LONG", "PARSER_MALFORM_PACKET",
+	"MPLS_OVER_2_LBL", "EACL_METER", "IACL_METER", "PROTO_STORM", "INVALID_CAPWAP_HEADER", // 20
+	"MAC_IP_SUBNET_BASED_VLAN", "OAM_PARSER", "UC_MC_RPF", "IP_MAC_BINDING_MATCH_MISMATCH", "SA_BLOCK",
+	"TUNNEL_IP_ADDRESS_CHECK", "EACL_DROP", "IACL_DROP", "ATTACK_PREVENT", "SYSTEM_PORT_LIMIT_LEARN", // 30,
+	"OAMPDU", "CCM_RX", "CFM_UNKNOWN_TYPE", "LBM_LBR_LTM_LTR", "Y_1731", "VLAN_LIMIT_LEARN",
+	"VLAN_ACCEPT_FRAME_TYPE", "CFI_1", "STATIC_DYNAMIC_PORT_MOVING", "PORT_MOVE_FORBID", // 40
+	"L3_CRC", "BPDU_PTP_LLDP_EAPOL_RMA", "MSTP_SRC_DROP_DISABLED_BLOCKING", "INVALID_SA", "NEW_SA",
+	"VLAN_IGR_FILTER", "IGR_VLAN_CONVERT", "GRATUITOUS_ARP", "MSTP_SRC_DROP", "L2_HASH_FULL", // 50
+	"MPLS_UNKNOWN_LBL", "L3_IPUC_NON_IP", "TTL", "MTU", "ICMP_REDIRECT", "STORM_CONTROL", "L3_DIP_DMAC_MISMATCH",
+	"IP4_IP_OPTION", "IP6_HBH_EXT_HEADER", "IP4_IP6_HEADER_ERROR", // 60
+	"ROUTING_IP_ADDR_CHECK", "ROUTING_EXCEPTION", "DA_BLOCK", "OAM_MUX", "PORT_ISOLATION", "VLAN_EGR_FILTER",
+	"MIRROR_ISOLATE", "MSTP_DESTINATION_DROP", "L2_MC_BRIDGE", "IP_UC_MC_ROUTING_LOOK_UP_MISS", // 70
+	"L2_UC", "L2_MC", "IP4_MC", "IP6_MC", "L3_UC_MC_ROUTE", "UNKNOWN_L2_UC_FLPM", "BC_FLPM",
+	"VLAN_PRO_UNKNOWN_L2_MC_FLPM", "VLAN_PRO_UNKNOWN_IP4_MC_FLPM", "VLAN_PROFILE_UNKNOWN_IP6_MC_FLPM" // 80,
 };
 
 static ssize_t rtl838x_common_read(char __user *buffer, size_t count,
@@ -217,6 +237,11 @@ static ssize_t drop_counter_read(struct file *filp, char __user *buffer, size_t 
 		offset = RTL930X_STAT_PRVTE_DROP_COUNTERS;
 		num = 85;
 		break;
+	case RTL9310_FAMILY_ID:
+		d = rtl931x_drop_cntr;
+		offset = RTL931X_STAT_PRVTE_DROP_COUNTERS;
+		num = 81;
+		break;
 	}
 
 	buf = kmalloc(30 * num, GFP_KERNEL);
@@ -243,6 +268,112 @@ static const struct file_operations drop_counter_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.read = drop_counter_read,
+};
+
+static void l2_table_print_entry(struct seq_file *m, struct rtl838x_switch_priv *priv,
+				 struct rtl838x_l2_entry *e)
+{
+	u64 portmask;
+	int i;
+
+	if (e->type == L2_UNICAST) {
+		seq_puts(m, "L2_UNICAST\n");
+
+		seq_printf(m, "  mac %02x:%02x:%02x:%02x:%02x:%02x vid %u rvid %u\n",
+			e->mac[0], e->mac[1], e->mac[2], e->mac[3], e->mac[4], e->mac[5],
+			e->vid, e->rvid);
+
+		seq_printf(m, "  port %d age %d", e->port, e->age);
+		if (e->is_static)
+			seq_puts(m, " static");
+		if (e->block_da)
+			seq_puts(m, " block_da");
+		if (e->block_sa)
+			seq_puts(m, " block_sa");
+		if (e->suspended)
+			seq_puts(m, " suspended");
+		if (e->next_hop)
+			seq_printf(m, " next_hop route_id %u", e->nh_route_id);
+		seq_puts(m, "\n");
+
+	} else {
+		if (e->type == L2_MULTICAST) {
+			seq_puts(m, "L2_MULTICAST\n");
+
+			seq_printf(m, "  mac %02x:%02x:%02x:%02x:%02x:%02x vid %u rvid %u\n",
+				e->mac[0], e->mac[1], e->mac[2], e->mac[3], e->mac[4], e->mac[5],
+				e->vid, e->rvid);
+		}
+
+		if (e->type == IP4_MULTICAST || e->type == IP6_MULTICAST) {
+			seq_puts(m, (e->type == IP4_MULTICAST) ?
+				    "IP4_MULTICAST\n" : "IP6_MULTICAST\n");
+
+			seq_printf(m, "  gip %08x sip %08x vid %u rvid %u\n",
+				e->mc_gip, e->mc_sip, e->vid, e->rvid);
+		}
+
+		portmask = priv->r->read_mcast_pmask(e->mc_portmask_index);
+		seq_printf(m, "  index %u ports", e->mc_portmask_index);
+		for (i = 0; i < 64; i++) {
+			if (portmask & BIT_ULL(i))
+				seq_printf(m, " %d", i);
+		}
+		seq_puts(m, "\n");
+	}
+
+	seq_puts(m, "\n");
+}
+
+static int l2_table_show(struct seq_file *m, void *v)
+{
+	struct rtl838x_switch_priv *priv = m->private;
+	struct rtl838x_l2_entry e;
+	int i, bucket, index;
+
+	mutex_lock(&priv->reg_mutex);
+
+	for (i = 0; i < priv->fib_entries; i++) {
+		bucket = i >> 2;
+		index = i & 0x3;
+		priv->r->read_l2_entry_using_hash(bucket, index, &e);
+
+		if (!e.valid)
+			continue;
+
+		seq_printf(m, "Hash table bucket %d index %d ", bucket, index);
+		l2_table_print_entry(m, priv, &e);
+
+		if (!((i + 1) % 64))
+			cond_resched();
+	}
+
+	for (i = 0; i < 64; i++) {
+		priv->r->read_cam(i, &e);
+
+		if (!e.valid)
+			continue;
+
+		seq_printf(m, "CAM index %d ", i);
+		l2_table_print_entry(m, priv, &e);
+	}
+
+	mutex_unlock(&priv->reg_mutex);
+
+	return 0;
+}
+
+static int l2_table_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, l2_table_show, inode->i_private);
+}
+
+static const struct file_operations l2_table_fops = {
+	.owner = THIS_MODULE,
+	.open = l2_table_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 static ssize_t age_out_read(struct file *filp, char __user *buffer, size_t count,
@@ -354,10 +485,6 @@ static int rtl838x_dbgfs_port_init(struct dentry *parent, struct rtl838x_switch_
 
 		debugfs_create_x32("storm_rate_bc", 0644, port_dir,
 				(u32 *)(RTL838X_SW_BASE + RTL838X_STORM_CTRL_PORT_BC(port)));
-
-		debugfs_create_x32("vlan_port_tag_sts_ctrl", 0644, port_dir,
-				(u32 *)(RTL838X_SW_BASE + RTL838X_VLAN_PORT_TAG_STS_CTRL 
-				+ (port << 2)));
 	} else {
 		debugfs_create_x32("storm_rate_uc", 0644, port_dir,
 				(u32 *)(RTL838X_SW_BASE + RTL839X_STORM_CTRL_PORT_UC_0(port)));
@@ -367,10 +494,6 @@ static int rtl838x_dbgfs_port_init(struct dentry *parent, struct rtl838x_switch_
 
 		debugfs_create_x32("storm_rate_bc", 0644, port_dir,
 				(u32 *)(RTL838X_SW_BASE + RTL839X_STORM_CTRL_PORT_BC_0(port)));
-
-		debugfs_create_x32("vlan_port_tag_sts_ctrl", 0644, port_dir,
-				(u32 *)(RTL838X_SW_BASE + RTL839X_VLAN_PORT_TAG_STS_CTRL
-				+ (port << 2)));
 	}
 
 	debugfs_create_u32("id", 0444, port_dir, (u32 *)&priv->ports[port].dp->index);
@@ -583,6 +706,8 @@ void rtl838x_dbgfs_init(struct rtl838x_switch_priv *priv)
 
 	debugfs_create_file("drop_counters", 0400, rtl838x_dir, priv, &drop_counter_fops);
 
+	debugfs_create_file("l2_table", 0400, rtl838x_dir, priv, &l2_table_fops);
+
 	return;
 err:
 	rtl838x_dbgfs_cleanup(priv);
@@ -600,4 +725,6 @@ void rtl930x_dbgfs_init(struct rtl838x_switch_priv *priv)
 	priv->dbgfs_dir = dbg_dir;
 
 	debugfs_create_file("drop_counters", 0400, dbg_dir, priv, &drop_counter_fops);
+
+	debugfs_create_file("l2_table", 0400, dbg_dir, priv, &l2_table_fops);
 }

@@ -7,12 +7,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=gdb
-PKG_VERSION:=11.1
+PKG_VERSION:=12.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@GNU/gdb
-PKG_HASH:=cccfcc407b20d343fb320d4a9a2110776dd3165118ffd41f4b1b162340333f94
+PKG_HASH:=0e1793bf8f2b54d53f46dea84ccfd446f48f81b297b28c4f7fc017b818d69fed
 GDB_DIR:=$(PKG_NAME)-$(PKG_VERSION)
 
 HOST_BUILD_DIR:=$(BUILD_DIR_TOOLCHAIN)/$(GDB_DIR)
@@ -33,12 +33,12 @@ HOST_CONFIGURE_ARGS = \
 	--with-gmp=$(TOPDIR)/staging_dir/host \
 	--with-mpfr=$(TOPDIR)/staging_dir/host \
 	--with-mpc=$(TOPDIR)/staging_dir/host \
+	--with-expat=$(TOPDIR)/staging_dir/host \
 	--disable-werror \
 	--without-uiout \
 	--enable-tui --disable-gdbtk --without-x \
 	--without-included-gettext \
 	--enable-threads \
-	--with-expat \
 	--disable-unit-tests \
 	--disable-ubsan \
 	--disable-binutils \

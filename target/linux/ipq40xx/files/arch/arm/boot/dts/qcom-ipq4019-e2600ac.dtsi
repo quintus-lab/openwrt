@@ -30,10 +30,6 @@
 			pinctrl-names = "default";
 		};
 
-		ess-psgmii@98000 {
-			status = "okay";
-		};
-
 		tcsr@1949000 {
 			compatible = "qcom,tcsr";
 			reg = <0x1949000 0x100>;
@@ -117,14 +113,6 @@
 		};
 
 		watchdog@b017000 {
-			status = "okay";
-		};
-
-		ess-switch@c000000 {
-			status = "okay";
-		};
-
-		edma@c080000 {
 			status = "okay";
 		};
 
@@ -253,18 +241,4 @@
 
 &usb2_hs_phy {
 	status = "okay";
-};
-
-&wifi0 {
-	status = "okay";
-	nvmem-cell-names = "pre-calibration";
-	nvmem-cells = <&precal_art_1000>;
-	qcom,ath10k-calibration-variant = "Qxwlan-E2600AC";
-};
-
-&wifi1 {
-	status = "okay";
-	nvmem-cell-names = "pre-calibration";
-	nvmem-cells = <&precal_art_5000>;
-	qcom,ath10k-calibration-variant = "Qxwlan-E2600AC";
 };

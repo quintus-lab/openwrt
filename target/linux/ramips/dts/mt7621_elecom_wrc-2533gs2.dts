@@ -49,11 +49,7 @@
 	nvmem-cell-names = "mac-address";
 };
 
-&factory {
-	compatible = "nvmem-cells";
-	#address-cells = <1>;
-	#size-cells = <1>;
-
+&nvmem {
 	macaddr_factory_fff4: macaddr@fff4 {
 		reg = <0xfff4 0x6>;
 	};

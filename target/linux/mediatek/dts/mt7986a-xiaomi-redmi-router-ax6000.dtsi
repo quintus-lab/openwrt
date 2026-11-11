@@ -4,6 +4,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/pinctrl/mt65xx.h>
 
 #include "mt7986a.dtsi"
 
@@ -16,12 +17,13 @@
 		led-upgrade = &led_status_rgb;
 	};
 
-	chosen {
+	chosen: chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@40000000 {
 		reg = <0 0x40000000 0 0x20000000>;
+		device_type = "memory";
 	};
 
 	keys {
@@ -42,6 +44,10 @@
 	};
 };
 
+&crypto {
+	status = "okay";
+};
+
 &eth {
 	status = "okay";
 
@@ -50,9 +56,8 @@
 		reg = <0>;
 		phy-mode = "2500base-x";
 
-		nvmem-cells = <&macaddr_factory_4>;
+		nvmem-cells = <&macaddr_factory_4 (-1)>;
 		nvmem-cell-names = "mac-address";
-		mac-address-increment = <(-1)>;
 
 		fixed-link {
 			speed = <2500>;
@@ -68,7 +73,7 @@
 };
 
 &mdio {
-	switch: switch@0 {
+	switch: switch@1f {
 		compatible = "mediatek,mt7531";
 		reg = <31>;
 		reset-gpios = <&pio 5 GPIO_ACTIVE_HIGH>;
@@ -87,13 +92,13 @@
 		};
 		conf-pu {
 			pins = "SPI2_CS", "SPI2_HOLD", "SPI2_WP";
-			drive-strength = <8>;
-			mediatek,pull-up-adv = <0>; /* bias-disable */
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-disable; /* bias-disable */
 		};
 		conf-pd {
 			pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
-			drive-strength = <8>;
-			mediatek,pull-down-adv = <0>; /* bias-disable */
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-disable; /* bias-disable */
 		};
 	};
 
@@ -117,7 +122,7 @@
 			       "WF1_HB2", "WF1_HB3", "WF1_HB4", "WF1_HB0",
 			       "WF1_HB5", "WF1_HB6", "WF1_HB7", "WF1_HB8",
 			       "WF1_TOP_CLK", "WF1_TOP_DATA";
-			drive-strength = <4>;
+			drive-strength = <MTK_DRIVE_4mA>;
 		};
 	};
 };
@@ -129,13 +134,11 @@
 
 	spi_nand_flash: flash@0 {
 		compatible = "spi-nand";
-		#address-cells = <1>;
-		#size-cells = <1>;
 		reg = <0>;
 
-		spi-max-frequency = <20000000>;
-		spi-tx-buswidth = <4>;
-		spi-rx-buswidth = <4>;
+		spi-max-frequency = <52000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 
 		partitions: partitions {
 			compatible = "fixed-partitions";
@@ -158,17 +161,25 @@
 				reg = <0x140000 0x40000>;
 			};
 
-			factory: partition@180000 {
+			partition@180000 {
 				label = "Factory";
 				reg = <0x180000 0x200000>;
 				read-only;
 
-				compatible = "nvmem-cells";
-				#address-cells = <1>;
-				#size-cells = <1>;
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
 
-				macaddr_factory_4: macaddr@4 {
-					reg = <0x4 0x6>;
+					eeprom_factory_0: eeprom@0 {
+						reg = <0x0 0x1000>;
+					};
+
+					macaddr_factory_4: macaddr@4 {
+						compatible = "mac-base";
+						reg = <0x4 0x6>;
+						#nvmem-cell-cells = <1>;
+					};
 				};
 			};
 
@@ -195,13 +206,18 @@
 
 		led_status_rgb: led@0 {
 			reg = <0>;
-			label = "rgb:status";
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RGB>;
 			color-index = <LED_COLOR_ID_RED LED_COLOR_ID_GREEN LED_COLOR_ID_BLUE>;
 		};
 
 		led_network_rgb: led@1 {
 			reg = <1>;
-			label = "rgb:network";
+
+			/* Hardcoding here for backward compatibility */
+			function = "network";
+
+			color = <LED_COLOR_ID_RGB>;
 			color-index = <LED_COLOR_ID_RED LED_COLOR_ID_GREEN LED_COLOR_ID_BLUE>;
 		};
 	};
@@ -234,7 +250,6 @@
 
 		port@6 {
 			reg = <6>;
-			label = "cpu";
 			ethernet = <&gmac0>;
 			phy-mode = "2500base-x";
 
@@ -247,12 +262,25 @@
 	};
 };
 
-&wmac {
+&trng {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&wifi {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&wf_2g_5g_pins>;
 
-	mediatek,mtd-eeprom = <&factory 0x0>;
+	nvmem-cells = <&eeprom_factory_0>;
+	nvmem-cell-names = "eeprom";
 };
 
 &uart0 {

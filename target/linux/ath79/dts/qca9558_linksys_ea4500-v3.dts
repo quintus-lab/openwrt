@@ -90,20 +90,22 @@
 			reg = <0x140000 0x40000>;
 			read-only;
 
-			compatible = "nvmem-cells";
-			#address-cells = <1>;
-			#size-cells = <1>;
+			nvmem-layout {
+				compatible = "fixed-layout";
+				#address-cells = <1>;
+				#size-cells = <1>;
 
-			cal_macaddr: macaddr@0 {
-				reg = <0x6 0x6>;
-			};
+				cal_macaddr: macaddr@0 {
+					reg = <0x6 0x6>;
+				};
 
-			cal_ath9k_soc: cal_ath9k@1000 {
-				reg = <0x1000 0x440>;
-			};
+				cal_ath9k_soc: cal_ath9k@1000 {
+					reg = <0x1000 0x440>;
+				};
 
-			cal_ath9k_pci: cal_ath9k@5000 {
-				reg = <0x5000 0x440>;
+				cal_ath9k_pci: cal_ath9k@5000 {
+					reg = <0x5000 0x440>;
+				};
 			};
 		};
 
@@ -121,7 +123,7 @@
 
 		partition@2c0000 {
 			label = "firmware";
-			reg = <0x2c0000 0x5000000>;
+			reg = <0x2c0000 0x7d40000>;
 
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
@@ -134,7 +136,7 @@
 
 			partition@400000 {
 				label = "ubi";
-				reg = <0x400000 0x4c00000>;
+				reg = <0x400000 0x7940000>;
 			};
 
 			/* Original layout for secondary partitions */
@@ -149,19 +151,20 @@
 			}; */
 		};
 
-		partition@52c0000 {
+		/* Original layout for user data partition */
+		/* partition@52c0000 {
 			label = "syscfg";
 			reg = <0x52c0000 0x2d40000>;
-			read-only;
-		};
+		}; */
 	};
 };
 
 &mdio0 {
 	status = "okay";
 
-	phy0: ethernet-phy@0 {
-		reg = <0>;
+	ethernet-switch@10 {
+		compatible = "qca,ar8327";
+		reg = <0x10>;
 
 		qca,ar8327-initvals = <
 			0x04 0x07600000 /* PORT0 PAD MODE CTRL: RGMII, to eth0 */
@@ -181,12 +184,16 @@
 
 	nvmem-cells = <&cal_macaddr>;
 	nvmem-cell-names = "mac-address";
-	phy-handle = <&phy0>;
 	pll-data = <0x96000000 0x00000101 0x00001616>;
 
 	gmac-config {
 		device = <&gmac>;
 		rgmii-enabled = <1>;
+	};
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
 	};
 };
 

@@ -15,12 +15,17 @@ define Device/aerohive_hiveap-330
   DEVICE_MODEL := HiveAP-330
   DEVICE_ALT0_VENDOR := Aerohive
   DEVICE_ALT0_MODEL := HiveAP-350
-  DEVICE_PACKAGES := kmod-tpm-i2c-atmel kmod-hwmon-lm70
+  DEVICE_PACKAGES := kmod-tpm-i2c-atmel kmod-hwmon-lm70 kmod-phy-at803x
   BLOCKSIZE := 128k
   KERNEL := kernel-bin | uImage none
-  KERNEL_INITRAMFS := kernel-bin | MultiImage none
+  KERNEL_INITRAMFS := kernel-bin | uImage none
+  KERNEL_NAME := simpleImage.hiveap-330
   KERNEL_SIZE := 16m
   IMAGES := sysupgrade.bin
+  KERNEL_ENTRY := 0x3000000
+  KERNEL_LOADADDR := 0x3000000
+  # append-dtb is still needed, as otherwise u-boot bootm complains
+  # about not having a FDT to edit.
   IMAGE/sysupgrade.bin := append-dtb | pad-to 256k | append-kernel | \
 	append-rootfs | pad-rootfs | check-size | append-metadata
   IMAGE_SIZE = 63m
@@ -61,8 +66,13 @@ TARGET_DEVICES += aerohive_hiveap-330
 define Device/enterasys_ws-ap3710i
   DEVICE_VENDOR := Enterasys
   DEVICE_MODEL := WS-AP3710i
+  DEVICE_PACKAGES := kmod-phy-at803x
   BLOCKSIZE := 128k
-  KERNEL = kernel-bin | lzma | fit lzma $(KDIR)/image-$$(DEVICE_DTS).dtb
+  KERNEL_NAME := simpleImage.ws-ap3710i
+  KERNEL_ENTRY := 0x3000000
+  KERNEL_LOADADDR := 0x3000000
+  KERNEL = kernel-bin | uImage none
+  KERNEL_INITRAMFS := kernel-bin | uImage none
   IMAGES := sysupgrade.bin
   IMAGE/sysupgrade.bin := append-kernel | append-rootfs | pad-rootfs | append-metadata
 endef
@@ -71,26 +81,52 @@ TARGET_DEVICES += enterasys_ws-ap3710i
 define Device/extreme-networks_ws-ap3825i
   DEVICE_VENDOR := Extreme Networks
   DEVICE_MODEL := WS-AP3825i
-  DEVICE_PACKAGES := kmod-ath10k-ct ath10k-firmware-qca988x-ct
+  DEVICE_PACKAGES := kmod-ath10k-ct ath10k-firmware-qca988x-ct kmod-phy-at803x
   BLOCKSIZE := 128k
-  DTB_SIZE := 20480
-  KERNEL = kernel-bin | lzma | pad-dtb | fit lzma $(KDIR)/image-$$(DEVICE_DTS).dtb
+  KERNEL_NAME := simpleImage.ws-ap3825i
+  KERNEL_ENTRY := 0x3000000
+  KERNEL_LOADADDR := 0x3000000
+  KERNEL = kernel-bin | fit none $(KDIR)/image-$$(DEVICE_DTS).dtb
   IMAGES := sysupgrade.bin
   IMAGE/sysupgrade.bin := append-kernel | append-rootfs | pad-rootfs | append-metadata
 endef
 TARGET_DEVICES += extreme-networks_ws-ap3825i
 
+define Device/hpe_msm460
+  DEVICE_VENDOR := Hewlett-Packard
+  DEVICE_MODEL := MSM460
+  DEVICE_ALT0_VENDOR := Hewlett-Packard
+  DEVICE_ALT0_MODEL := MSM430
+  DEVICE_ALT1_VENDOR := Hewlett-Packard
+  DEVICE_ALT1_MODEL := MSM466
+  DEVICE_PACKAGES := kmod-phy-marvell
+  KERNEL = kernel-bin | fit none $(KDIR)/image-$$(DEVICE_DTS).dtb
+  KERNEL_NAME := zImage.la3000000
+  KERNEL_ENTRY := 0x3000000
+  KERNEL_LOADADDR := 0x3000000
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  SUBPAGESIZE := 2048
+  KERNEL_IN_UBI := 1
+  UBINIZE_OPTS := -E 5
+  IMAGES := factory.bin sysupgrade.bin
+  IMAGE/factory.bin := append-ubi
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += hpe_msm460
+
 define Device/ocedo_panda
   DEVICE_VENDOR := OCEDO
   DEVICE_MODEL := Panda
-  DEVICE_PACKAGES := kmod-rtc-ds1307
-  KERNEL = kernel-bin | gzip | fit gzip $(KDIR)/image-$$(DEVICE_DTS).dtb
+  DEVICE_PACKAGES := kmod-rtc-ds1307 kmod-dsa-b53-mdio kmod-phy-broadcom
+  KERNEL = kernel-bin | libdeflate-gzip | fit gzip $(KDIR)/image-$$(DEVICE_DTS).dtb
   PAGESIZE := 2048
   SUBPAGESIZE := 512
   BLOCKSIZE := 128k
   IMAGES := fdt.bin sysupgrade.bin
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
   IMAGE/fdt.bin := append-dtb
+  DEVICE_COMPAT_VERSION := 1.1
+  DEVICE_COMPAT_MESSAGE := Config cannot be migrated from swconfig to DSA
 endef
 TARGET_DEVICES += ocedo_panda
-

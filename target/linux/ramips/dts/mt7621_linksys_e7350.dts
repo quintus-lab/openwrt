@@ -47,7 +47,8 @@
 		};
 
 		led_power: led-power {
-			label = "blue:power";
+			function = LED_FUNCTION_POWER;
+			color = <LED_COLOR_ID_BLUE>;
 			gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
@@ -56,40 +57,6 @@
 			color = <LED_COLOR_ID_AMBER>;
 			function = LED_FUNCTION_WAN;
 			gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
-		};
-
-		led-wan2 {
-			color = <LED_COLOR_ID_BLUE>;
-			function = LED_FUNCTION_WAN;
-			gpios = <&switch0 0 GPIO_ACTIVE_LOW>;
-		};
-
-		led-lan4 {
-			color = <LED_COLOR_ID_BLUE>;
-			function = LED_FUNCTION_LAN;
-			function-enumerator = <4>;
-			gpios = <&switch0 3 GPIO_ACTIVE_LOW>;
-		};
-
-		led-lan3 {
-			color = <LED_COLOR_ID_BLUE>;
-			function = LED_FUNCTION_LAN;
-			function-enumerator = <3>;
-			gpios = <&switch0 6 GPIO_ACTIVE_LOW>;
-		};
-
-		led-lan2 {
-			color = <LED_COLOR_ID_BLUE>;
-			function = LED_FUNCTION_LAN;
-			function-enumerator = <2>;
-			gpios = <&switch0 9 GPIO_ACTIVE_HIGH>;
-		};
-
-		led-lan1 {
-			color = <LED_COLOR_ID_BLUE>;
-			function = LED_FUNCTION_LAN;
-			function-enumerator = <1>;
-			gpios = <&switch0 12 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -113,10 +80,20 @@
 			reg = <0x80000 0x80000>;
 		};
 
-		factory: partition@100000 {
+		partition@100000 {
 			label = "Factory";
 			reg = <0x100000 0x80000>;
 			read-only;
+
+			nvmem-layout {
+				compatible = "fixed-layout";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				eeprom_factory_0: eeprom@0 {
+					reg = <0x0 0xe00>;
+				};
+			};
 		};
 
 		partition@180000 {
@@ -161,7 +138,8 @@
 	wifi@0,0 {
 		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
-		mediatek,mtd-eeprom = <&factory 0x0000>;
+		nvmem-cells = <&eeprom_factory_0>;
+		nvmem-cell-names = "eeprom";
 	};
 };
 
@@ -178,16 +156,11 @@
 	phy-handle = <&ethphy0>;
 };
 
-&mdio {
-	ethphy0: ethernet-phy@0 {
-		reg = <0>;
-	};
+&ethphy0 {
+	/delete-property/ interrupts;
 };
 
 &switch0 {
-	gpio-controller;
-	#gpio-cells = <2>;
-
 	ports {
 		port@1 {
 			status = "okay";

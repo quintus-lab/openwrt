@@ -5,6 +5,11 @@
 / {
 	model = "Ubiquiti UniFi 6 LR v2 (U-Boot mod)";
 	compatible = "ubnt,unifi-6-lr-v2-ubootmod", "mediatek,mt7622";
+
+	chosen {
+		rootdisk = <&rootdisk>;
+		bootargs = "earlycon=uart8250,mmio32,0x11002000 swiotlb=512 console=ttyS0,115200n8 root=/dev/fit0 rootwait";
+	};
 };
 
 &nor_partitions {
@@ -23,16 +28,44 @@
 		reg = <0xc0000 0x10000>;
 	};
 
-	factory: partition@d0000 {
+	partition@d0000 {
 		label = "factory";
 		reg = <0xd0000 0x40000>;
 		read-only;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			eeprom_factory_0: eeprom@0 {
+				reg = <0x0 0x4da8>; /* actual length 0x400 */
+			};
+
+			eeprom_factory_20000: eeprom@20000 {
+				reg = <0x20000 0xe00>;
+			};
+		};
 	};
 
-	eeprom: partition@110000 {
+	partition@110000 {
 		label = "eeprom";
 		reg = <0x110000 0x10000>;
 		read-only;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			macaddr_eeprom_0: macaddr@0 {
+				reg = <0x0 0x6>;
+			};
+
+			macaddr_eeprom_6: macaddr@6 {
+				reg = <0x6 0x6>;
+			};
+		};
 	};
 
 	partition@120000 {
@@ -40,45 +73,9 @@
 		reg = <0x120000 0xee0000>;
 	};
 
-	partition@1000000 {
+	rootdisk: partition@1000000 {
 		compatible = "denx,fit";
 		label = "firmware";
 		reg = <0x1000000 0x3000000>;
-	};
-};
-
-&wmac {
-	mediatek,mtd-eeprom = <&factory 0x0>;
-	nvmem-cells = <&macaddr_eeprom_0>;
-	nvmem-cell-names = "mac-address";
-	status = "okay";
-};
-
-&slot0 {
-	wifi@0,0 {
-		reg = <0x0 0 0 0 0>;
-		mediatek,mtd-eeprom = <&factory 0x20000>;
-		nvmem-cells = <&macaddr_eeprom_6>;
-		nvmem-cell-names = "mac-address";
-		ieee80211-freq-limit = <5000000 6000000>;
-	};
-};
-
-&gmac0 {
-	nvmem-cells = <&macaddr_eeprom_0>;
-	nvmem-cell-names = "mac-address";
-};
-
-&eeprom {
-	compatible = "nvmem-cells";
-	#address-cells = <1>;
-	#size-cells = <1>;
-
-	macaddr_eeprom_0: macaddr@0 {
-		reg = <0x0 0x6>;
-	};
-
-	macaddr_eeprom_6: macaddr@6 {
-		reg = <0x6 0x6>;
 	};
 };

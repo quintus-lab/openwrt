@@ -8,13 +8,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ls-dpl
-PKG_VERSION:=21.08
-PKG_RELEASE:=$(AUTORELEASE)
+PKG_VERSION:=10.40.0
+PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://source.codeaurora.org/external/qoriq/qoriq-components/mc-utils
-PKG_SOURCE_VERSION:=LSDK-21.08
-PKG_MIRROR_HASH:=372498ff4b5c8a1ac64ead5856d03ee021332f57771989ed6fe066745372b242
+PKG_SOURCE_URL:=https://github.com/nxp-qoriq/mc-utils
+PKG_SOURCE_VERSION:=mc_release_10.40.0
+PKG_MIRROR_HASH:=d29481aeddbfff337b8bdcdd0a93c19dd0673f0408246e7f3f98cd2c0af15cc3
 
 PKG_FLAGS:=nonshared
 
@@ -26,6 +26,8 @@ define Package/layerscape-dpl
   CATEGORY:=Firmware
   TITLE:=NXP DPL firmware
   DEPENDS:=@TARGET_layerscape
+  DEFAULT:=y if TARGET_layerscape_armv8_64b
+  HIDDEN:=1
 endef
 
 MAKE_PATH:=config

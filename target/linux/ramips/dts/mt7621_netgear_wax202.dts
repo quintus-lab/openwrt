@@ -4,6 +4,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	compatible = "netgear,wax202", "mediatek,mt7621-soc";
@@ -34,12 +35,14 @@
 		compatible = "gpio-leds";
 
 		led_power_green: power_green {
-			label = "green:power";
+			function = LED_FUNCTION_POWER;
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&gpio 0 GPIO_ACTIVE_LOW>;
 		};
 
 		led_power_orange: power_orange {
-			label = "orange:power";
+			function = LED_FUNCTION_POWER;
+			color = <LED_COLOR_ID_ORANGE>;
 			gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
 		};
 
@@ -53,29 +56,14 @@
 			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
 		};
 
-		led_lan1_green: lan1_green {
-			label = "green:lan1";
-			gpios = <&switch0 3 GPIO_ACTIVE_LOW>;
-		};
-
 		led_lan1_orange: lan1_orange {
 			label = "orange:lan1";
 			gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
 		};
 
-		led_lan2_green: lan2_green {
-			label = "green:lan2";
-			gpios = <&switch0 6 GPIO_ACTIVE_LOW>;
-		};
-
 		led_lan2_orange: lan2_orange {
 			label = "orange:lan2";
 			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
-		};
-
-		led_lan3_green: lan3_green {
-			label = "green:lan3";
-			gpios = <&switch0 12 GPIO_ACTIVE_LOW>;
 		};
 
 		led_lan3_orange: lan3_orange {
@@ -127,10 +115,20 @@
 			read-only;
 		};
 
-		factory: partition@100000 {
+		partition@100000 {
 			label = "Factory";
 			reg = <0x100000 0x80000>;
 			read-only;
+
+			nvmem-layout {
+				compatible = "fixed-layout";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				eeprom_factory_0: eeprom@0 {
+					reg = <0x0 0xe00>;
+				};
+			};
 		};
 
 		partition@180000 {
@@ -228,12 +226,9 @@
 	wifi@0,0 {
 		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
-		mediatek,mtd-eeprom = <&factory 0x0>;
+		nvmem-cells = <&eeprom_factory_0>;
+		nvmem-cell-names = "eeprom";
 	};
-};
-
-&pcie2 {
-	status = "disabled";
 };
 
 &state_default {
@@ -249,16 +244,11 @@
 	phy-handle = <&ethphy0>;
 };
 
-&mdio {
-	ethphy0: ethernet-phy@0 {
-		reg = <0>;
-	};
+&ethphy0 {
+	/delete-property/ interrupts;
 };
 
 &switch0 {
-	gpio-controller;
-	#gpio-cells = <2>;
-
 	ports {
 		port@1 {
 			status = "okay";
@@ -277,6 +267,10 @@
 			label = "lan3";
 		};
 	};
+};
+
+&usb_phy {
+	status = "disabled";
 };
 
 &xhci {

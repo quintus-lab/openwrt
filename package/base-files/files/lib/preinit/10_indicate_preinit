@@ -65,12 +65,27 @@ preinit_config_switch() {
 
 preinit_config_port() {
 	local original
+	local dev_port
 
 	local netdev="$1"
 	local path="$2"
+	local port="$3"
 
 	[ -d "/sys/devices/$path/net" ] || return
-	original="$(ls "/sys/devices/$path/net" | head -1)"
+
+	if [ -z "$port" ]; then
+		original="$(ls "/sys/devices/$path/net" | head -1)"
+	else
+		for device in /sys/devices/$path/net/*; do
+			dev_port="$(cat "$device/dev_port")"
+			if [ "$dev_port" = "$port" ]; then
+				original="${device##*/}"
+				break
+			fi
+		done
+
+		[ -z "$original" ] && return
+	fi
 
 	[ "$netdev" = "$original" ] && return
 
@@ -95,8 +110,6 @@ preinit_config_board() {
 		json_select "network_device"
 			json_select "$netdev"
 				json_get_vars path path
-				next_eth="$(echo "$netdev" | grep 'eth[0-9]*' | tr -dc '[0-9]')"
-				[ "$next_eth" -gt "$max_eth" ] && max_eth=$next_eth
 				if [ -n "$path" -a -h "/sys/class/net/$netdev" ]; then
 					ip link set "$netdev" down
 					ip link set "$netdev" name eth$((++max_eth))
@@ -111,7 +124,8 @@ preinit_config_board() {
 		json_select "network_device"
 			json_select "$netdev"
 				json_get_vars path path
-				[ -n "$path" ] && preinit_config_port "$netdev" "$path"
+				json_get_vars port port
+				[ -n "$path" ] && preinit_config_port "$netdev" "$path" "$port"
 			json_select ..
 		json_select ..
 	done
@@ -167,6 +181,23 @@ preinit_ip() {
 		preinit_config_board
 	fi
 
+	preinit_net_echo "Doing OpenWrt Preinit\n"
+}
+
+preinit_ip_event() {
+	[ "$pi_preinit_no_failsafe" = "y" ] && return
+
+	if [ -z "$pi_ifname" ]; then
+		type set_preinit_iface > /dev/null 2>&1 && set_preinit_iface
+		pi_ifname=$ifname
+	fi
+
+	[ -n "$pi_ifname" ] || return
+
+	ip -4 -o address show dev "$pi_ifname" 2> /dev/null | \
+		grep -q "inet $pi_ip/" && return
+
+	preinit_ip_config "$pi_ifname"
 	preinit_net_echo "Doing OpenWrt Preinit\n"
 }
 

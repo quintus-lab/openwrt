@@ -3,18 +3,71 @@
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/image.mk
 
-KERNEL_LOADADDR = 0x80000000
-KERNEL_ENTRY = 0x80000400
+KERNEL_LOADADDR = 0x80100000
+
+define Build/hasivo-stock-patch
+	python3 $(TOPDIR)/target/linux/realtek/image/hasivo-stock-patch.py \
+		--board $(DEVICE_NAME) --image $@ --output $@.new \
+		--topdir $(TOPDIR) --build-dir $(BUILD_DIR) \
+		--busybox-variant $(if $(CONFIG_PACKAGE_busybox-selinux),selinux,default) \
+		--cross-compile "$(TARGET_CROSS)" --staging-dir $(STAGING_DIR) \
+		--cc "$(TARGET_CC)"
+	mv $@.new $@
+endef
+
+define Build/hasivo-web-factory
+	[ ! -f "$@" ] || { \
+		python3 $(TOPDIR)/target/linux/realtek/image/hasivo-web-factory.py \
+			--model $(HASIVO_MODEL) \
+			--uimage-magic $(UIMAGE_MAGIC) \
+			--image $@ \
+			--output $@.new && \
+		mv $@.new $@; \
+	}
+endef
 
 DEVICE_VARS += \
+	BELKIN_HEADER \
+	BELKIN_MODEL \
+        CAMEO_BOARD_MODEL \
         CAMEO_BOARD_VERSION \
         CAMEO_CUSTOMER_SIGNATURE \
         CAMEO_KERNEL_PART \
+        CAMEO_KERNEL_PART_SIZE \
         CAMEO_ROOTFS_PART \
-        DLINK_KERNEL_PART_SIZE \
+	ECS_BOARD_ID \
+        FLASH_ADDR \
         H3C_DEVICE_ID \
         H3C_PRODUCT_ID \
-        ZYXEL_VERS
+	HASIVO_MODEL \
+	LINKSYS_HEADER \
+	ZYNFW_BOARD \
+	ZYNFW_ALIGN \
+	ZYXEL_VERS
+
+define Build/rt-compress
+	$(STAGING_DIR_HOST)/bin/xz -9 --format=lzma --stdout "$@" > "$@.new"
+	mv "$@.new" "$@"
+endef
+
+define Build/rt-loader
+	$(MAKE) all clean -C rt-loader CROSS_COMPILE="$(TARGET_CROSS)" \
+		KERNEL_IMG_IN="$@" KERNEL_IMG_OUT="$@.new" BUILD_DIR="$@.build"
+	mv "$@.new" "$@"
+endef
+
+define Build/rt-loader-no-uimage
+        $(MAKE) all clean -C rt-loader CROSS_COMPILE="$(TARGET_CROSS)" \
+                KERNEL_ADDR="$(KERNEL_LOADADDR)" KERNEL_IMG_IN="$@" \
+                KERNEL_IMG_OUT="$@.new" BUILD_DIR="$@.build"
+        mv "$@.new" "$@"
+endef
+
+define Build/rt-loader-standalone
+	$(MAKE) all clean -C rt-loader CROSS_COMPILE="$(TARGET_CROSS)" \
+		FLASH_ADDR=$(FLASH_ADDR) KERNEL_IMG_OUT="$@.new" BUILD_DIR="$@.build"
+	mv "$@.new" "$@"
+endef
 
 define Build/zyxel-vers
        ( echo VERS;\
@@ -24,31 +77,32 @@ define Build/zyxel-vers
        done ) >> $@
 endef
 
-define Build/dlink-cameo
-	$(SCRIPT_DIR)/cameo-tag.py $@ $(DLINK_KERNEL_PART_SIZE)
+define Build/cameo-tag
+	$(SCRIPT_DIR)/cameo-tag.py $@ $(CAMEO_KERNEL_PART_SIZE)
 endef
 
-define Build/dlink-version
+define Build/cameo-version
 	echo -n "OpenWrt" >> $@
 	dd if=/dev/zero bs=25 count=1 >> $@
 endef
 
-define Build/dlink-headers
-        dd if=$@ bs=$(DLINK_KERNEL_PART_SIZE) count=1 of=$@.kernel_part; \
-        dd if=$@ bs=$(DLINK_KERNEL_PART_SIZE) skip=1 of=$@.rootfs_part; \
+define Build/cameo-headers
+        dd if=$@ bs=$(CAMEO_KERNEL_PART_SIZE) count=1 of=$@.kernel_part; \
+        dd if=$@ bs=$(CAMEO_KERNEL_PART_SIZE) skip=1 of=$@.rootfs_part; \
         $(SCRIPT_DIR)/cameo-imghdr.py $@.kernel_part $@.kernel_part.hex \
-                "$(DEVICE_MODEL)" os $(CAMEO_KERNEL_PART) \
+                "$(CAMEO_BOARD_MODEL)" os $(CAMEO_KERNEL_PART) \
                 $(CAMEO_CUSTOMER_SIGNATURE) \
                 $(CAMEO_BOARD_VERSION) \
                 $(KERNEL_LOADADDR); \
         $(SCRIPT_DIR)/cameo-imghdr.py $@.rootfs_part $@.rootfs_part.hex \
-                "$(DEVICE_MODEL)" squashfs $(CAMEO_ROOTFS_PART) \
+                "$(CAMEO_BOARD_MODEL)" squashfs $(CAMEO_ROOTFS_PART) \
                 $(CAMEO_CUSTOMER_SIGNATURE) \
                 $(CAMEO_BOARD_VERSION); \
         cat $@.kernel_part.hex $@.rootfs_part.hex > $@
 endef
 
 define Build/7z
+	$(if $(SOURCE_DATE_EPOCH),touch -hcd "@$(SOURCE_DATE_EPOCH)" $@)
 	$(STAGING_DIR_HOST)/bin/7zr a $(@).new -t7z -m0=lzma $(@)
 	mv $@.new $@
 endef
@@ -71,18 +125,41 @@ define Build/h3c-vfs
 	mv $@.new $@
 endef
 
-define Build/relocate-kernel
-	rm -rf $@.relocate
-	$(CP) ../../generic/image/relocate $@.relocate
-	$(MAKE) -j1 -C $@.relocate KERNEL_ADDR=$(KERNEL_LOADADDR) LZMA_TEXT_START=0x82000000 \
-		CROSS_COMPILE=$(TARGET_CROSS)
-	( \
-		dd if=$@.relocate/loader.bin bs=32 conv=sync && \
-		perl -e '@s = stat("$@"); print pack("N", @s[7])' && \
-		cat "$@" \
-	) > "$@.new"
-	mv "$@.new" "$@"
-	rm -rf $@.relocate
+define Build/belkin-header
+	$(SCRIPT_DIR)/belkin-header.py $(@) $(@).new $(BELKIN_HEADER) ${BELKIN_MODEL}
+	mv $@.new $@
+endef
+
+# Edgecore images use a 100-byte uImage header. The last two bytes contain
+# the board ID stored in the hwinfo partition.
+define Build/edgecore-header
+	$(STAGING_DIR_HOST)/bin/uimage_padhdr -i $@ -o $@.new -l 36 -s 0:1.0.0.0 -x 34:$(ECS_BOARD_ID)
+	mv $@.new $@
+endef
+
+define Build/linksys-image
+	$(SCRIPT_DIR)/linksys-image.sh $(@) $(@).new $(LINKSYS_MODEL)
+	mv $@.new $@
+endef
+
+define Build/xikestor-nosimg
+	$(STAGING_DIR_HOST)/bin/nosimg-enc -i $@ -o $@.new
+	mv $@.new $@
+endef
+
+define Build/xikestor-sks7300-img
+	$(STAGING_DIR_HOST)/bin/sks7300-img \
+		-i $@ \
+		-o $@.new \
+		-n OpenWrt \
+		-v $(VERSION_DIST)$(firstword $(subst +, , $(firstword $(subst -, ,$(REVISION)))))
+	mv $@.new $@
+endef
+
+define Build/zynsig
+	$(STAGING_DIR_HOST)/bin/zynsig -i $@ \
+		-o $@.new
+	mv $@.new $@
 endef
 
 define Device/Default
@@ -97,8 +174,9 @@ define Device/Default
 	append-dtb | \
 	libdeflate-gzip | \
 	uImage gzip
-  DEVICE_DTS_DIR := ../dts-$(KERNEL_PATCHVER)
+  DEVICE_DTS_DIR := ../dts
   DEVICE_DTS = $$(SOC)_$(1)
+  COMPILE :=
   IMAGES := sysupgrade.bin
   IMAGE/sysupgrade.bin := \
 	append-kernel | \
@@ -107,6 +185,40 @@ define Device/Default
 	pad-rootfs | \
 	check-size | \
 	append-metadata
+endef
+
+define Device/kernel-lzma
+  KERNEL := \
+	kernel-bin | \
+	append-dtb | \
+	lzma | \
+	uImage lzma
+  KERNEL_INITRAMFS := \
+	kernel-bin | \
+	append-dtb | \
+	lzma | \
+	uImage lzma
+endef
+
+define Device/uimage-rt-loader
+	KERNEL/rt-loader := kernel-bin | append-dtb | rt-compress | rt-loader
+	KERNEL := $$(KERNEL/rt-loader) | uImage none
+	KERNEL_INITRAMFS := $$(KERNEL/rt-loader) | uImage none
+endef
+
+define Device/rt-loader-bootbase
+	KERNEL/rt-compress := kernel-bin | append-dtb | rt-compress
+	KERNEL := $$(KERNEL/rt-compress) | uImage lzma
+	KERNEL_INITRAMFS := $$(KERNEL/rt-compress) | uImage lzma | rt-loader
+endef
+
+define Build/zynos-firmware
+	$(STAGING_DIR_HOST)/bin/mkzynfw \
+	    -B $(ZYNFW_BOARD) \
+	    -b $(KDIR)/loader-$(DEVICE_NAME).bin \
+	    -r $@:$(ZYNFW_ALIGN) \
+	    -o $@.new
+	mv $@.new $@
 endef
 
 include $(SUBTARGET).mk

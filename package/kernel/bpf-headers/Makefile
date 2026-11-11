@@ -13,17 +13,18 @@ include $(INCLUDE_DIR)/kernel.mk
 
 
 PKG_NAME:=linux
-PKG_PATCHVER:=5.15
+PKG_PATCHVER:=6.18
+
 # Manually include kernel version and hash from kernel details file
-include $(INCLUDE_DIR)/kernel-$(PKG_PATCHVER)
+GENERIC_PLATFORM_DIR := $(CURDIR)/../../../target/linux/generic
+include $(GENERIC_PLATFORM_DIR)/kernel-$(PKG_PATCHVER)
 
 PKG_VERSION:=$(PKG_PATCHVER)$(strip $(LINUX_VERSION-$(PKG_PATCHVER)))
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
-PKG_SOURCE_URL:=$(LINUX_SITE)
+PKG_SOURCE_URL:=@KERNEL/linux/kernel/v$(word 1,$(subst ., ,$(PKG_PATCHVER))).x
 PKG_HASH:=$(LINUX_KERNEL_HASH-$(strip $(PKG_VERSION)))
 PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/bpf-headers/$(PKG_NAME)-$(PKG_VERSION)
 
-GENERIC_PLATFORM_DIR := $(CURDIR)/../../../target/linux/generic
 GENERIC_BACKPORT_DIR := $(GENERIC_PLATFORM_DIR)/backport$(if $(wildcard $(GENERIC_PLATFORM_DIR)/backport-$(PKG_PATCHVER)),-$(PKG_PATCHVER))
 GENERIC_PATCH_DIR := $(GENERIC_PLATFORM_DIR)/pending$(if $(wildcard $(GENERIC_PLATFORM_DIR)/pending-$(PKG_PATCHVER)),-$(PKG_PATCHVER))
 GENERIC_HACK_DIR := $(GENERIC_PLATFORM_DIR)/hack$(if $(wildcard $(GENERIC_PLATFORM_DIR)/hack-$(PKG_PATCHVER)),-$(PKG_PATCHVER))
@@ -39,7 +40,7 @@ include $(INCLUDE_DIR)/package.mk
 
 define Package/bpf-headers
   SECTION:=kernel
-  CATEGORY:=Kernel
+  CATEGORY:=Kernel modules
   TITLE:=eBPF kernel headers
   BUILDONLY:=1
   HIDDEN:=1
@@ -53,7 +54,9 @@ KERNEL_MAKE := \
 	$(MAKE) -C $(PKG_BUILD_DIR) \
 		ARCH=$(BPF_KARCH) \
 		CROSS_COMPILE=$(BPF_ARCH)-linux- \
-		LLVM=1 CC="$(CLANG)" LD="$(TARGET_CROSS)ld" \
+		LLVM=1 KBUILD_SYM32=n \
+		CC="$(CLANG) --target=$(BPF_TARGET)" \
+		LD="$(TARGET_CROSS)ld" \
 		HOSTCC="$(HOSTCC)" \
 		HOSTCXX="$(HOSTCXX)" \
 		KBUILD_HOSTLDLIBS="-L$(STAGING_DIR_HOST)/lib" \
@@ -62,6 +65,10 @@ KERNEL_MAKE := \
 
 define Build/Patch
 	$(Kernel/Patch/Default)
+endef
+
+define Quilt/Refresh/Package
+	$(Quilt/Refresh/Kernel)
 endef
 
 BPF_DOC = $(PKG_BUILD_DIR)/scripts/bpf_doc.py
@@ -81,6 +88,9 @@ define Build/Configure
 		cut -d= -f2 | \
 		bc -q $(LINUX_DIR)/kernel/time/timeconst.bc \
 		> $(LINUX_DIR)/include/generated/timeconst.h
+	printf '%s\n' '#ifndef __RQ_OFFSETS_H__' '#define __RQ_OFFSETS_H__' \
+		'#define RQ_nr_pinned 0' '#endif' \
+		> $(LINUX_DIR)/include/generated/rq-offsets.h
 	$(BPF_DOC) --header \
 		--file $(LINUX_DIR)/tools/include/uapi/linux/bpf.h \
 		> $(PKG_BUILD_DIR)/tools/lib/bpf/bpf_helper_defs.h

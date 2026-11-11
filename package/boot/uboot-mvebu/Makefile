@@ -8,10 +8,10 @@
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
-PKG_VERSION:=2022.10
-PKG_RELEASE:=$(AUTORELEASE)
+PKG_VERSION:=2026.10
+PKG_RELEASE:=1
 
-PKG_HASH:=50b4482a505bc281ba8470c399a3c26e145e29b23500bc35c50debd7fa46bdf8
+PKG_HASH:=3f856da3cbbc93af51ff95fde18588a348b4a26723b01d9841e999d988481015
 
 include $(INCLUDE_DIR)/u-boot.mk
 include $(INCLUDE_DIR)/package.mk
@@ -22,18 +22,25 @@ define U-Boot/Default
   HIDDEN:=1
 endef
 
+define U-Boot/mox
+  NAME:=CZ.NIC Turris Mox
+  BUILD_DEVICES:=cznic_turris-mox
+  BUILD_SUBTARGET:=cortexa53
+  UBOOT_CONFIG:=turris_mox
+endef
+
 define U-Boot/clearfog
   NAME:=SolidRun ClearFog A1
   BUILD_DEVICES:=solidrun_clearfog-base-a1 solidrun_clearfog-pro-a1
   BUILD_SUBTARGET:=cortexa9
-  UBOOT_IMAGE:=u-boot-spl.kwb
+  UBOOT_IMAGE:=u-boot-with-spl.kwb
 endef
 
 define U-Boot/helios4
   NAME:=Kobol Helios 4
   BUILD_DEVICES:=kobol_helios4
   BUILD_SUBTARGET:=cortexa9
-  UBOOT_IMAGE:=u-boot-spl.kwb
+  UBOOT_IMAGE:=u-boot-with-spl.kwb
 endef
 
 define U-Boot/omnia
@@ -41,7 +48,7 @@ define U-Boot/omnia
   BUILD_DEVICES:=cznic_turris-omnia
   BUILD_SUBTARGET:=cortexa9
   UBOOT_CONFIG:=turris_omnia
-  UBOOT_IMAGE:=u-boot-spl.kwb
+  UBOOT_IMAGE:=u-boot-with-spl.kwb
 endef
 
 define U-Boot/espressobin
@@ -60,13 +67,34 @@ define U-Boot/eDPU
   BUILD_SUBTARGET:=cortexa53
 endef
 
+define U-Boot/rb5009
+  NAME:=MikroTik RB5009
+  BUILD_SUBTARGET:=cortexa72
+  BUILD_DEVICES:=mikrotik_rb5009ug mikrotik_rb5009upr
+  UBOOT_CONFIG:=mvebu_rb5009
+  UBOOT_IMAGE:=u-boot.elf
+endef
+
+define U-Boot/atlas
+  NAME:=RIPE Atlas Probe v5
+  BUILD_DEVICES:=ripe_atlas-v5
+  BUILD_SUBTARGET:=cortexa53
+  UBOOT_CONFIG:=turris_mox
+endef
+
 UBOOT_TARGETS:= \
+	mox \
 	clearfog \
 	helios4 \
 	omnia \
 	espressobin \
+	atlas \
 	uDPU \
-	eDPU
+	eDPU \
+	rb5009
+
+UBOOT_CUSTOMIZE_CONFIG := \
+	--disable TOOLS_MKEFICAPSULE
 
 define Package/u-boot/install
 	$(if $(findstring cortexa53,$(BUILD_SUBTARGET)),,$(Package/u-boot/install/default))

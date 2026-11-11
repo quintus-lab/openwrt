@@ -7,12 +7,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=gdb
-PKG_VERSION:=12.1
+PKG_VERSION:=16.3
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@GNU/gdb
-PKG_HASH:=0e1793bf8f2b54d53f46dea84ccfd446f48f81b297b28c4f7fc017b818d69fed
+PKG_HASH:=bcfcd095528a987917acf9fff3f1672181694926cc18d609c99d0042c00224c5
+PKG_CPE_ID:=cpe:/a:gnu:gdb
 GDB_DIR:=$(PKG_NAME)-$(PKG_VERSION)
 
 HOST_BUILD_DIR:=$(BUILD_DIR_TOOLCHAIN)/$(GDB_DIR)
@@ -20,6 +21,9 @@ HOST_BUILD_DIR:=$(BUILD_DIR_TOOLCHAIN)/$(GDB_DIR)
 HOST_BUILD_PARALLEL:=1
 
 include $(INCLUDE_DIR)/toolchain-build.mk
+
+export ZSTD_CFLAGS=-I$(STAGING_DIR_HOST)/include -pthread
+export ZSTD_LIBS=-L$(STAGING_DIR_HOST)/lib -lzstd -lpthread
 
 HOST_CONFIGURE_VARS += \
 	acx_cv_cc_gcc_supports_ada=false \
@@ -30,10 +34,10 @@ HOST_CONFIGURE_ARGS = \
 	--build=$(GNU_HOST_NAME) \
 	--host=$(GNU_HOST_NAME) \
 	--target=$(REAL_GNU_TARGET_NAME) \
-	--with-gmp=$(TOPDIR)/staging_dir/host \
-	--with-mpfr=$(TOPDIR)/staging_dir/host \
-	--with-mpc=$(TOPDIR)/staging_dir/host \
-	--with-expat=$(TOPDIR)/staging_dir/host \
+	--with-gmp=$(STAGING_DIR_HOST) \
+	--with-mpfr=$(STAGING_DIR_HOST) \
+	--with-mpc=$(STAGING_DIR_HOST) \
+	--with-expat=$(STAGING_DIR_HOST) \
 	--disable-werror \
 	--without-uiout \
 	--enable-tui --disable-gdbtk --without-x \

@@ -7,21 +7,21 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=elfutils
-PKG_VERSION:=0.188
+PKG_VERSION:=0.196
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
-PKG_SOURCE_URL:=https://sourceware.org/$(PKG_NAME)/ftp/$(PKG_VERSION)
-PKG_HASH:=fb8b0e8d0802005b9a309c60c1d8de32dd2951b56f0c3a3cb56d21ce01595dff
+PKG_SOURCE_URL:=https://sourceware.org/$(PKG_NAME)/ftp/$(PKG_VERSION) \
+                https://mirrors.kernel.org/sourceware/$(PKG_NAME)/$(PKG_VERSION)
+PKG_HASH:=fd5cc6b77ad6773cac93cb3f415f9318ac3b3455eecf801f6b4a742c4f6c7209
 
 PKG_MAINTAINER:=Luiz Angelo Daros de Luca <luizluca@gmail.com>
-PKG_LICENSE:=GPL-3.0-or-later
+PKG_LICENSE:=GPL-2.0-or-later LGPL-3.0-or-later
 PKG_LICENSE_FILES:=COPYING COPYING-GPLV2 COPYING-LGPLV3
 PKG_CPE_ID:=cpe:/a:elfutils_project:elfutils
 
 PKG_FIXUP:=autoreconf
 PKG_INSTALL:=1
-PKG_USE_MIPS16:=1
 PKG_BUILD_DEPENDS:=!USE_GLIBC:argp-standalone
 
 include $(INCLUDE_DIR)/package.mk
@@ -51,7 +51,6 @@ define Package/libelf
   $(call Package/elfutils/Default)
   DEPENDS:=$(INTL_DEPENDS) +zlib
   TITLE+= (libelf)
-  PROVIDES:=libelf1
 endef
 
 ifeq ($(CONFIG_BUILD_NLS),y)
@@ -65,6 +64,7 @@ HOST_CONFIGURE_ARGS += \
 	--disable-nls \
 	--disable-debuginfod \
 	--disable-libdebuginfod \
+	--without-bzlib \
 	--without-lzma \
 	--without-zstd
 
@@ -72,6 +72,7 @@ CONFIGURE_ARGS += \
 	--program-prefix=eu- \
 	--disable-debuginfod \
 	--disable-libdebuginfod \
+	--without-bzlib \
 	--without-lzma \
 	--without-zstd
 
@@ -81,7 +82,13 @@ HOST_CONFIGURE_VARS += \
 CONFIGURE_VARS += \
 	ac_cv_search__obstack_free=yes
 
-TARGET_CFLAGS += -D_GNU_SOURCE -Wno-unused-result -Wno-format-nonliteral
+TARGET_CFLAGS += \
+	-D_GNU_SOURCE \
+	-Wno-unused-result \
+	-Wno-format-nonliteral \
+	-Wno-error=use-after-free
+
+TARGET_LDFLAGS += $(FPIC)
 
 define Build/InstallDev
 	$(INSTALL_DIR) $(1)/usr/include

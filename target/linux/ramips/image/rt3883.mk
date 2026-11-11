@@ -7,9 +7,9 @@ endef
 
 define Device/asus_rt-n56u
   SOC := rt3662
-  BLOCKSIZE := 64k
   IMAGE_SIZE := 7872k
-  IMAGE/sysupgrade.bin += | mkrtn56uimg -s
+  IMAGE/sysupgrade.bin := $$(sysupgrade_bin) | check-size | \
+	mkrtn56uimg -s | append-metadata
   DEVICE_VENDOR := ASUS
   DEVICE_MODEL := RT-N56U
   DEVICE_PACKAGES := kmod-usb-ohci kmod-usb2
@@ -17,10 +17,20 @@ define Device/asus_rt-n56u
 endef
 TARGET_DEVICES += asus_rt-n56u
 
-define Device/belkin_f9k1109v1
+define Device/asus_rt-n65u
   $(Device/uimage-lzma-loader)
   SOC := rt3883
   BLOCKSIZE := 64k
+  IMAGE_SIZE := 16064k
+  DEVICE_VENDOR := ASUS
+  DEVICE_MODEL := RT-N65U
+  DEVICE_PACKAGES := kmod-usb3 kmod-usb-ledtrig-usbport kmod-switch-rtl8367b
+endef
+TARGET_DEVICES += asus_rt-n65u
+
+define Device/belkin_f9k1109v1
+  $(Device/uimage-lzma-loader)
+  SOC := rt3883
   DEVICE_VENDOR := Belkin
   DEVICE_MODEL := F9K1109
   DEVICE_VARIANT := Version 1.0
@@ -34,7 +44,6 @@ TARGET_DEVICES += belkin_f9k1109v1
 define Device/dlink_dir-645
   $(Device/seama-lzma-loader)
   SOC := rt3662
-  BLOCKSIZE := 4k
   IMAGE_SIZE := 7872k
   SEAMA_SIGNATURE := wrgn39_dlob.hans_dir645
   DEVICE_VENDOR := D-Link
@@ -46,7 +55,6 @@ TARGET_DEVICES += dlink_dir-645
 
 define Device/edimax_br-6475nd
   SOC := rt3662
-  BLOCKSIZE := 64k
   IMAGE_SIZE := 7744k
   IMAGE/sysupgrade.bin := append-kernel | append-rootfs | \
 	edimax-header -s CSYS -m RN54 -f 0x70000 -S 0x01100000 | pad-rootfs | \
@@ -60,7 +68,6 @@ TARGET_DEVICES += edimax_br-6475nd
 define Device/engenius_esr600h
   $(Device/uimage-lzma-loader)
   SOC := rt3662
-  BLOCKSIZE := 4k
   IMAGE_SIZE := 7872k
   IMAGES += factory.dlf
   IMAGE/factory.dlf := $$(sysupgrade_bin) | check-size | \
@@ -73,17 +80,16 @@ TARGET_DEVICES += engenius_esr600h
 
 define Device/loewe_wmdr-143n
   SOC := rt3662
-  BLOCKSIZE := 64k
   IMAGE_SIZE := 7872k
   DEVICE_VENDOR := Loewe
   DEVICE_MODEL := WMDR-143N
   SUPPORTED_DEVICES += wmdr-143n
+  DEFAULT := n
 endef
 TARGET_DEVICES += loewe_wmdr-143n
 
 define Device/omnima_hpm
   SOC := rt3662
-  BLOCKSIZE := 64k
   IMAGE_SIZE := 16064k
   DEVICE_VENDOR := Omnima
   DEVICE_MODEL := HPM
@@ -108,7 +114,6 @@ TARGET_DEVICES += samsung_cy-swr1100
 define Device/sitecom_wlr-6000
   $(Device/uimage-lzma-loader)
   SOC := rt3883
-  BLOCKSIZE := 4k
   IMAGE_SIZE := 7244k
   IMAGES += factory.dlf
   IMAGE/factory.dlf := $$(sysupgrade_bin) | check-size | \
@@ -122,7 +127,6 @@ TARGET_DEVICES += sitecom_wlr-6000
 
 define Device/trendnet_tew-691gr
   SOC := rt3883
-  BLOCKSIZE := 64k
   IMAGE_SIZE := 7872k
   IMAGES += factory.bin
   IMAGE/factory.bin := $$(sysupgrade_bin) | check-size | umedia-header 0x026910
@@ -134,7 +138,6 @@ TARGET_DEVICES += trendnet_tew-691gr
 
 define Device/trendnet_tew-692gr
   SOC := rt3883
-  BLOCKSIZE := 64k
   IMAGE_SIZE := 7872k
   IMAGES += factory.bin
   IMAGE/factory.bin := $$(sysupgrade_bin) | check-size | umedia-header 0x026920

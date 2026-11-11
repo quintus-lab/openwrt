@@ -1,19 +1,10 @@
-// SPDX-License-Identifier: (GPL-2.0 OR ISC)
+/* SPDX-License-Identifier: (GPL-2.0 OR ISC) */
 /* Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
  * Copyright (c) 2017 - 2018, John Crispin <john@phrozen.org>
  * Copyright (c) 2018 - 2019, Christian Lamparter <chunkeey@gmail.com>
  * Copyright (c) 2020 - 2021, Gabor Juhos <j4g8y7@gmail.com>
+ * Copyright (c) 2021 - 2022, Maxime Chevallier <maxime.chevallier@bootlin.com>
  *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all copies.
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
- * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef _IPQESS_H_
@@ -37,7 +28,6 @@
 #define IPQESS_MAX_RX_QUEUE 8
 #define IPQESS_MAX_TX_QUEUE 16
 
-
 /* Configurations */
 #define IPQESS_INTR_CLEAR_TYPE 0
 #define IPQESS_INTR_SW_IDX_W_TYPE 0
@@ -56,7 +46,7 @@
 #define IPQESS_DESC_SINGLE 0x2
 #define IPQESS_DESC_PAGE 0x4
 
-struct ipqesstool_statistics {
+struct ipqess_statistics {
 	u32 tx_q0_pkt;
 	u32 tx_q1_pkt;
 	u32 tx_q2_pkt;
@@ -117,14 +107,14 @@ struct ipqess_tx_desc {
 } __aligned(16) __packed;
 
 struct ipqess_rx_desc {
-	u16 rrd0;
-	u16 rrd1;
-	u16 rrd2;
-	u16 rrd3;
-	u16 rrd4;
-	u16 rrd5;
-	u16 rrd6;
-	u16 rrd7;
+	__le16 rrd0;
+	__le16 rrd1;
+	__le16 rrd2;
+	__le16 rrd3;
+	__le16 rrd4;
+	__le16 rrd5;
+	__le16 rrd6;
+	__le16 rrd7;
 } __aligned(16) __packed;
 
 struct ipqess_buf {
@@ -172,6 +162,7 @@ struct ipqess_rx_ring_refill {
 struct ipqess {
 	struct net_device *netdev;
 	void __iomem *hw_addr;
+
 	struct clk *ess_clk;
 	struct reset_control *ess_rst;
 
@@ -182,7 +173,9 @@ struct ipqess {
 	struct phylink_config phylink_config;
 	struct ipqess_tx_ring tx_ring[IPQESS_NETDEV_QUEUES];
 
-	struct ipqesstool_statistics ipqessstats;
+	struct ipqess_statistics ipqess_stats;
+
+	/* Protects stats */
 	spinlock_t stats_lock;
 	struct net_device_stats stats;
 
@@ -192,12 +185,6 @@ struct ipqess {
 	u32 rx_irq[IPQESS_MAX_RX_QUEUE];
 	char rx_irq_names[IPQESS_MAX_TX_QUEUE][IPQESS_IRQ_NAME_LEN];
 };
-
-static inline void build_test(void)
-{
-	struct ipqess *ess;
-	BUILD_BUG_ON(ARRAY_SIZE(ess->rx_ring) != ARRAY_SIZE(ess->rx_refill));
-}
 
 void ipqess_set_ethtool_ops(struct net_device *netdev);
 void ipqess_update_hw_stats(struct ipqess *ess);
@@ -216,7 +203,7 @@ void ipqess_update_hw_stats(struct ipqess *ess);
 #define IPQESS_REG_MISC_ISR 0x210
 #define IPQESS_REG_WOL_ISR 0x218
 
-#define IPQESS_MISC_ISR_RX_URG_Q(x) (1 << x)
+#define IPQESS_MISC_ISR_RX_URG_Q(x) (1 << (x))
 
 #define IPQESS_MISC_ISR_AXIR_TIMEOUT 0x00000100
 #define IPQESS_MISC_ISR_AXIR_ERR 0x00000200
@@ -488,7 +475,6 @@ void ipqess_update_hw_stats(struct ipqess *ess);
 #define IPQESS_REG_WOL_PATTERN_START 0x5000
 #define IPQESS_PATTERN_PART_REG_OFFSET 0x40
 
-
 /* TX descriptor fields */
 #define IPQESS_TPD_HDR_SHIFT 0
 #define IPQESS_TPD_PPPOE_EN 0x00000100
@@ -515,7 +501,7 @@ void ipqess_update_hw_stats(struct ipqess *ess);
 #define IPQESS_RRD_PKT_SIZE_MASK 0x3FFF
 #define IPQESS_RRD_SRC_PORT_NUM_MASK 0x4000
 #define IPQESS_RRD_SVLAN 0x8000
-#define IPQESS_RRD_FLOW_COOKIE_MASK 0x07FF;
+#define IPQESS_RRD_FLOW_COOKIE_MASK 0x07FF
 
 #define IPQESS_RRD_PKT_SIZE_MASK 0x3FFF
 #define IPQESS_RRD_CSUM_FAIL_MASK 0xC000
@@ -526,5 +512,7 @@ void ipqess_update_hw_stats(struct ipqess *ess);
 #define IPQESS_RRD_PRIORITY_MASK 0x7
 #define IPQESS_RRD_PORT_TYPE_SHIFT 7
 #define IPQESS_RRD_PORT_TYPE_MASK 0x1F
+
+#define IPQESS_RRD_PORT_ID_MASK 0x7000
 
 #endif

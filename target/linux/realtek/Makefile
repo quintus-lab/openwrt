@@ -7,13 +7,12 @@ BOARD:=realtek
 BOARDNAME:=Realtek MIPS
 DEVICE_TYPE:=basic
 FEATURES:=ramdisk squashfs
-SUBTARGETS:=rtl838x rtl839x rtl930x rtl931x
+SUBTARGETS:=rtl838x rtl839x rtl930x rtl930x_nand rtl931x rtl931x_nand rtl960x
 
-KERNEL_PATCHVER:=5.10
-KERNEL_TESTING_PATCHVER:=5.15
+KERNEL_PATCHVER:=6.18
 
 define Target/Description
-	Build firmware images for Realtek RTL83xx based boards.
+	Build firmware images for Realtek RTL83xx/RTL93xx/RTL960x based boards.
 endef
 
 include $(INCLUDE_DIR)/target.mk
@@ -21,13 +20,8 @@ include $(INCLUDE_DIR)/target.mk
 DEFAULT_PACKAGES += \
 	ethtool \
 	firewall4 \
-	ip-bridge \
-	ip-full \
 	kmod-gpio-button-hotplug \
-	kmod-nft-offload \
-	nftables \
 	odhcp6c \
-	tc-bpf \
 	uboot-envtools \
 
 

@@ -1,3 +1,5 @@
+DTS_DIR := $(DTS_DIR)/qcom
+
 define Build/cros-gpt
 	cp $@ $@.tmp 2>/dev/null || true
 	ptgen -o $@.tmp -g \
@@ -30,7 +32,11 @@ define Device/google_wifi
 	KERNEL_NAME := zImage
 	IMAGES += factory.bin
 	IMAGE/factory.bin := cros-gpt | append-kernel-part | append-rootfs
+	# Note: Chromium/Depthcharge-based bootloaders insert a reserved-memory
+	# ramoops node into the Device Tree automatically, so we can use
+	# kmod-ramoops.
 	DEVICE_PACKAGES := partx-utils mkf2fs e2fsprogs \
-			   kmod-fs-ext4 kmod-fs-f2fs kmod-google-firmware
+			   kmod-fs-ext4 kmod-fs-f2fs kmod-google-firmware \
+			   kmod-leds-lp5523 kmod-ramoops
 endef
 TARGET_DEVICES += google_wifi

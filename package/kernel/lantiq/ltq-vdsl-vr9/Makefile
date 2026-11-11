@@ -9,7 +9,7 @@ include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=ltq-vdsl-vr9
 PKG_VERSION:=4.17.18.6
-PKG_RELEASE:=7
+PKG_RELEASE:=8
 
 PKG_BASE_NAME:=drv_dsl_cpe_api
 PKG_SOURCE:=$(PKG_BASE_NAME)_vrx-$(PKG_VERSION).tar.gz
@@ -29,7 +29,7 @@ define KernelPackage/ltq-vdsl-vr9
   TITLE:=vdsl driver
   SECTION:=sys
   SUBMENU:=Network Devices
-  DEPENDS:=@TARGET_lantiq_xrx200 +kmod-ltq-vdsl-vr9-mei
+  DEPENDS:=@(TARGET_lantiq_xrx200||TARGET_lantiq_xrx200_legacy) +kmod-ltq-vdsl-vr9-mei
   FILES:=$(PKG_BUILD_DIR)/src/drv_dsl_cpe_api.ko
   AUTOLOAD:=$(call AutoLoad,51,drv_dsl_cpe_api)
 endef

@@ -1,6 +1,19 @@
+From e0d482fdcfe92046f9d32e00624014c31576be6d Mon Sep 17 00:00:00 2001
+From: Daniel Golle <daniel@makrotopia.org>
+Date: Sun, 5 Feb 2017 17:55:53 +0100
+Subject: [PATCH] rt2x00: mt7620: introduce accessors for CHIP_VER register
+
+The vendor driver behaves differently depending on the package, version
+and ECO revision the MT7620 CHIP_VER register reports. Add
+hw_get_chippkg, hw_get_chipver and hw_get_chipeco to struct rt2800_ops
+so that rt2800lib can query those values. Only rt2800soc implements
+them, and only when built for MT7620; every other bus driver returns 0.
+
+Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+---
 --- a/drivers/net/wireless/ralink/rt2x00/rt2800lib.h
 +++ b/drivers/net/wireless/ralink/rt2x00/rt2800lib.h
-@@ -78,6 +78,9 @@ struct rt2800_ops {
+@@ -76,6 +76,9 @@ struct rt2800_ops {
  	int (*drv_init_registers)(struct rt2x00_dev *rt2x00dev);
  	__le32 *(*drv_get_txwi)(struct queue_entry *entry);
  	unsigned int (*drv_get_dma_done)(struct data_queue *queue);
@@ -10,7 +23,7 @@
  };
  
  static inline u32 rt2800_register_read(struct rt2x00_dev *rt2x00dev,
-@@ -195,6 +198,27 @@ static inline unsigned int rt2800_drv_ge
+@@ -184,6 +187,27 @@ static inline unsigned int rt2800_drv_ge
  	return rt2800ops->drv_get_dma_done(queue);
  }
  
@@ -40,7 +53,7 @@
  			const u8 arg0, const u8 arg1);
 --- a/drivers/net/wireless/ralink/rt2x00/rt2800pci.c
 +++ b/drivers/net/wireless/ralink/rt2x00/rt2800pci.c
-@@ -286,6 +286,10 @@ static int rt2800pci_read_eeprom(struct
+@@ -292,6 +292,10 @@ static int rt2800pci_read_eeprom(struct
  	return retval;
  }
  
@@ -49,9 +62,9 @@
 +static int rt2800pci_get_chipeco(void) { return 0; }
 +
  static const struct ieee80211_ops rt2800pci_mac80211_ops = {
- 	.tx			= rt2x00mac_tx,
- 	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
-@@ -329,6 +333,9 @@ static const struct rt2800_ops rt2800pci
+ 	.add_chanctx = ieee80211_emulate_add_chanctx,
+ 	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+@@ -339,6 +343,9 @@ static const struct rt2800_ops rt2800pci
  	.drv_init_registers	= rt2800mmio_init_registers,
  	.drv_get_txwi		= rt2800mmio_get_txwi,
  	.drv_get_dma_done	= rt2800mmio_get_dma_done,
@@ -76,9 +89,9 @@
  /* Allow hardware encryption to be disabled. */
  static bool modparam_nohwcrypt;
  module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-@@ -118,6 +124,27 @@ static int rt2800soc_write_firmware(stru
- 	return 0;
+@@ -159,6 +165,27 @@ static int rt2800soc_resume(struct platf
  }
+ #endif /* CONFIG_PM */
  
 +#ifdef CONFIG_SOC_MT7620
 +static int rt2800soc_get_chippkg(void)
@@ -102,9 +115,9 @@
 +#endif
 +
  static const struct ieee80211_ops rt2800soc_mac80211_ops = {
- 	.tx			= rt2x00mac_tx,
- 	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
-@@ -160,6 +187,9 @@ static const struct rt2800_ops rt2800soc
+ 	.add_chanctx = ieee80211_emulate_add_chanctx,
+ 	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+@@ -206,6 +233,9 @@ static const struct rt2800_ops rt2800soc
  	.drv_init_registers	= rt2800mmio_init_registers,
  	.drv_get_txwi		= rt2800mmio_get_txwi,
  	.drv_get_dma_done	= rt2800mmio_get_dma_done,
@@ -125,9 +138,9 @@
 +static int rt2800usb_get_chipeco(void) { return 0; }
 +
  static const struct ieee80211_ops rt2800usb_mac80211_ops = {
- 	.tx			= rt2x00mac_tx,
- 	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
-@@ -672,6 +676,9 @@ static const struct rt2800_ops rt2800usb
+ 	.add_chanctx = ieee80211_emulate_add_chanctx,
+ 	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+@@ -676,6 +680,9 @@ static const struct rt2800_ops rt2800usb
  	.drv_init_registers	= rt2800usb_init_registers,
  	.drv_get_txwi		= rt2800usb_get_txwi,
  	.drv_get_dma_done	= rt2800usb_get_dma_done,

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from os import getenv
+from os import getenv, path
 from pathlib import Path
 from sys import argv
 import hashlib
@@ -13,7 +13,6 @@ if len(argv) != 2:
 json_path = Path(argv[1])
 file_path = Path(getenv("FILE_DIR")) / getenv("FILE_NAME")
 
-
 if not file_path.is_file():
     print("Skip JSON creation for non existing file", file_path)
     exit(0)
@@ -21,7 +20,7 @@ if not file_path.is_file():
 
 def get_titles():
     titles = []
-    for prefix in ["", "ALT0_", "ALT1_", "ALT2_"]:
+    for prefix in ["", "ALT0_", "ALT1_", "ALT2_", "ALT3_", "ALT4_", "ALT5_"]:
         title = {}
         for var in ["vendor", "model", "variant"]:
             if getenv("DEVICE_{}{}".format(prefix, var.upper())):
@@ -36,8 +35,26 @@ def get_titles():
     return titles
 
 
+def get_numerical_size(image_size):
+    if image_size.endswith("g"):
+        return int(image_size[:-1]) * 1024 * 1024 * 1024
+    elif image_size.endswith("m"):
+        return int(image_size[:-1]) * 1024 * 1024
+    elif image_size.endswith("k"):
+        return int(image_size[:-1]) * 1024
+    else:
+        return int(image_size)
+
+
 device_id = getenv("DEVICE_ID")
-hash_file = hashlib.sha256(file_path.read_bytes()).hexdigest()
+
+sha256_hash = hashlib.sha256()
+with open(str(file_path),"rb") as f:
+    # Read and update hash string value in blocks of 4K
+    for byte_block in iter(lambda: f.read(4096),b""):
+        sha256_hash.update(byte_block)
+
+hash_file = sha256_hash.hexdigest()
 
 if file_path.with_suffix(file_path.suffix + ".sha256sum").exists():
     hash_unsigned = (
@@ -45,6 +62,8 @@ if file_path.with_suffix(file_path.suffix + ".sha256sum").exists():
     )
 else:
     hash_unsigned = hash_file
+
+file_size = path.getsize(file_path)
 
 file_info = {
     "metadata_version": 1,
@@ -61,6 +80,7 @@ file_info = {
                     "name": getenv("FILE_NAME"),
                     "sha256": hash_file,
                     "sha256_unsigned": hash_unsigned,
+                    "size": file_size,
                 }
             ],
             "device_packages": getenv("DEVICE_PACKAGES").split(),
@@ -69,6 +89,17 @@ file_info = {
         }
     },
 }
+
+if getenv("IMAGE_SIZE") or getenv("KERNEL_SIZE"):
+    file_info["profiles"][device_id]["file_size_limits"] = {}
+    if getenv("IMAGE_SIZE"):
+        file_info["profiles"][device_id]["file_size_limits"]["image"] = get_numerical_size(
+            getenv("IMAGE_SIZE")
+        )
+    if getenv("KERNEL_SIZE"):
+        file_info["profiles"][device_id]["file_size_limits"]["kernel"] = get_numerical_size(
+            getenv("KERNEL_SIZE")
+        )
 
 if getenv("FILE_FILESYSTEM"):
     file_info["profiles"][device_id]["images"][0]["filesystem"] = getenv(

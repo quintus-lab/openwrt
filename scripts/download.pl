@@ -11,7 +11,9 @@ use strict;
 use warnings;
 use File::Basename;
 use File::Copy;
+use File::Path;
 use Text::ParseWords;
+use JSON::PP;
 
 @ARGV > 2 or die "Syntax: $0 <target dir> <filename> <hash> <url filename> [<mirror> ...]\n";
 
@@ -54,6 +56,21 @@ sub localmirrors {
 	$mirror and push @mlist, split(/;/, $mirror);
 
 	return @mlist;
+}
+
+sub projectsmirrors {
+	my $project = shift;
+	my $append = shift;
+
+	open (PM, "$scriptdir/projectsmirrors.json") ||
+		die "Can´t open $scriptdir/projectsmirrors.json: $!\n";
+	local $/;
+	my $mirror_json = <PM>;
+	my $mirror = decode_json $mirror_json;
+
+	foreach (@{$mirror->{$project}}) {
+		push @mirrors, $_ . "/" . ($append or "");
+	}
 }
 
 sub which($) {
@@ -107,12 +124,12 @@ sub download_cmd {
 	my $filename = shift;
 
 	if ($download_tool eq "curl") {
-		return (qw(curl -f --connect-timeout 20 --retry 5 --location),
+		return (qw(curl -f --connect-timeout 5 --retry 3 --location),
 			$check_certificate ? () : '--insecure',
 			shellwords($ENV{CURL_OPTIONS} || ''),
 			$url);
 	} elsif ($download_tool eq "wget") {
-		return (qw(wget --tries=5 --timeout=20 --output-document=-),
+		return (qw(wget --tries=3 --timeout=5 --output-document=-),
 			$check_certificate ? () : '--no-check-certificate',
 			shellwords($ENV{WGET_OPTIONS} || ''),
 			$url);
@@ -146,6 +163,7 @@ sub download
 	my $mirror = shift;
 	my $download_filename = shift;
 	my @additional_mirrors = @_;
+	my @cmd;
 
 	$mirror =~ s!/$!!;
 
@@ -157,7 +175,7 @@ sub download
 		}
 
 		if (! -d "$target") {
-			system("mkdir", "-p", "$target/");
+			make_path($target);
 		}
 
 		if (! open TMPDLS, "find $mirror -follow -name $filename 2>/dev/null |") {
@@ -192,7 +210,11 @@ sub download
 			}
 		};
 	} else {
-		my @cmd = download_cmd("$mirror/$download_filename", $download_filename, @additional_mirrors);
+		if ($mirror =~ /a=snapshot/) {
+			@cmd = download_cmd("$mirror", $download_filename, @additional_mirrors);
+		} else {
+			@cmd = download_cmd("$mirror/$download_filename", $download_filename, @additional_mirrors);
+		}
 		print STDERR "+ ".join(" ",@cmd)."\n";
 		open(FETCH_FD, '-|', @cmd) or die "Cannot launch aria2c, curl or wget.\n";
 		$hash_cmd and do {
@@ -228,7 +250,7 @@ sub download
 	};
 
 	unlink "$target/$filename";
-	system("mv", "$target/$filename.dl", "$target/$filename");
+	move("$target/$filename.dl", "$target/$filename");
 	cleanup();
 }
 
@@ -244,53 +266,23 @@ foreach my $mirror (@ARGV) {
 	if ($mirror =~ /^\@SF\/(.+)$/) {
 		# give sourceforge a few more tries, because it redirects to different mirrors
 		for (1 .. 5) {
-			push @mirrors, "https://downloads.sourceforge.net/$1";
+			projectsmirrors '@SF', $1;
 		}
 	} elsif ($mirror =~ /^\@OPENWRT$/) {
 		# use OpenWrt source server directly
 	} elsif ($mirror =~ /^\@DEBIAN\/(.+)$/) {
-		push @mirrors, "https://ftp.debian.org/debian/$1";
-		push @mirrors, "https://mirror.leaseweb.com/debian/$1";
-		push @mirrors, "https://mirror.netcologne.de/debian/$1";
-		push @mirrors, "https://mirrors.tuna.tsinghua.edu.cn/debian/$1";
-		push @mirrors, "https://mirrors.ustc.edu.cn/debian/$1"
+		projectsmirrors '@DEBIAN', $1;
 	} elsif ($mirror =~ /^\@APACHE\/(.+)$/) {
-		push @mirrors, "https://mirror.netcologne.de/apache.org/$1";
-		push @mirrors, "https://mirror.aarnet.edu.au/pub/apache/$1";
-		push @mirrors, "https://mirror.csclub.uwaterloo.ca/apache/$1";
-		push @mirrors, "https://archive.apache.org/dist/$1";
-		push @mirrors, "http://mirror.cogentco.com/pub/apache/$1";
-		push @mirrors, "http://mirror.navercorp.com/apache/$1";
-		push @mirrors, "http://ftp.jaist.ac.jp/pub/apache/$1";
-		push @mirrors, "ftp://apache.cs.utah.edu/apache.org/$1";
-		push @mirrors, "ftp://apache.mirrors.ovh.net/ftp.apache.org/dist/$1";
-		push @mirrors, "https://mirrors.tuna.tsinghua.edu.cn/apache/$1";
-		push @mirrors, "https://mirrors.ustc.edu.cn/apache/$1";
+		projectsmirrors '@APACHE', $1;
 	} elsif ($mirror =~ /^\@GITHUB\/(.+)$/) {
 		# give github a few more tries (different mirrors)
 		for (1 .. 5) {
-			push @mirrors, "https://raw.githubusercontent.com/$1";
+			projectsmirrors '@GITHUB', $1;
 		}
 	} elsif ($mirror =~ /^\@GNU\/(.+)$/) {
-		push @mirrors, "https://mirror.csclub.uwaterloo.ca/gnu/$1";
-		push @mirrors, "https://mirror.netcologne.de/gnu/$1";
-		push @mirrors, "http://ftp.kddilabs.jp/GNU/gnu/$1";
-		push @mirrors, "http://www.nic.funet.fi/pub/gnu/gnu/$1";
-		push @mirrors, "http://mirror.internode.on.net/pub/gnu/$1";
-		push @mirrors, "http://mirror.navercorp.com/gnu/$1";
-		push @mirrors, "ftp://mirrors.rit.edu/gnu/$1";
-		push @mirrors, "ftp://download.xs4all.nl/pub/gnu/$1";
-		push @mirrors, "https://ftp.gnu.org/gnu/$1";
-		push @mirrors, "https://mirrors.tuna.tsinghua.edu.cn/gnu/$1";
-		push @mirrors, "https://mirrors.ustc.edu.cn/gnu/$1";
+		projectsmirrors '@GNU', $1;
 	} elsif ($mirror =~ /^\@SAVANNAH\/(.+)$/) {
-		push @mirrors, "https://mirror.netcologne.de/savannah/$1";
-		push @mirrors, "https://mirror.csclub.uwaterloo.ca/nongnu/$1";
-		push @mirrors, "http://ftp.acc.umu.se/mirror/gnu.org/savannah/$1";
-		push @mirrors, "http://nongnu.uib.no/$1";
-		push @mirrors, "http://ftp.igh.cnrs.fr/pub/nongnu/$1";
-		push @mirrors, "ftp://cdimage.debian.org/mirror/gnu.org/savannah/$1";
-		push @mirrors, "ftp://ftp.acc.umu.se/mirror/gnu.org/savannah/$1";
+		projectsmirrors '@SAVANNAH', $1;
 	} elsif ($mirror =~ /^\@KERNEL\/(.+)$/) {
 		my @extra = ( $1 );
 		if ($filename =~ /linux-\d+\.\d+(?:\.\d+)?-rc/) {
@@ -299,35 +291,16 @@ foreach my $mirror (@ARGV) {
 			push @extra, "$extra[0]/longterm/v$1";
 		}
 		foreach my $dir (@extra) {
-			push @mirrors, "https://cdn.kernel.org/pub/$dir";
-			push @mirrors, "https://download.xs4all.nl/ftp.kernel.org/pub/$dir";
-			push @mirrors, "https://mirrors.mit.edu/kernel/$dir";
-			push @mirrors, "http://ftp.nara.wide.ad.jp/pub/kernel.org/$dir";
-			push @mirrors, "http://www.ring.gr.jp/archives/linux/kernel.org/$dir";
-			push @mirrors, "ftp://ftp.riken.jp/Linux/kernel.org/$dir";
-			push @mirrors, "ftp://www.mirrorservice.org/sites/ftp.kernel.org/pub/$dir";
-			push @mirrors, "https://mirrors.tuna.tsinghua.edu.cn/kernel/$dir";
-			push @mirrors, "https://mirrors.ustc.edu.cn/kernel.org/$dir";
+			projectsmirrors '@KERNEL', $dir;
 		}
 	} elsif ($mirror =~ /^\@GNOME\/(.+)$/) {
-		push @mirrors, "https://download.gnome.org/sources/$1";
-		push @mirrors, "https://mirror.csclub.uwaterloo.ca/gnome/sources/$1";
-		push @mirrors, "http://ftp.acc.umu.se/pub/GNOME/sources/$1";
-		push @mirrors, "http://ftp.kaist.ac.kr/gnome/sources/$1";
-		push @mirrors, "http://www.mirrorservice.org/sites/ftp.gnome.org/pub/GNOME/sources/$1";
-		push @mirrors, "http://mirror.internode.on.net/pub/gnome/sources/$1";
-		push @mirrors, "http://ftp.belnet.be/ftp.gnome.org/sources/$1";
-		push @mirrors, "ftp://ftp.cse.buffalo.edu/pub/Gnome/sources/$1";
-		push @mirrors, "ftp://ftp.nara.wide.ad.jp/pub/X11/GNOME/sources/$1";
-		push @mirrors, "https://mirrors.ustc.edu.cn/gnome/sources/$1";
+		projectsmirrors '@GNOME', $1;
 	} else {
 		push @mirrors, $mirror;
 	}
 }
 
-push @mirrors, 'https://sources.cdn.openwrt.org';
-push @mirrors, 'https://sources.openwrt.org';
-push @mirrors, 'https://mirror2.openwrt.org/sources';
+projectsmirrors '@OPENWRT';
 
 if (-f "$target/$filename") {
 	$hash_cmd and do {
@@ -342,21 +315,30 @@ if (-f "$target/$filename") {
 		cleanup();
 		exit 0 if $sum eq $file_hash;
 
-		die "Hash of the local file $filename does not match (file: $sum, requested: $file_hash) - deleting download.\n";
 		unlink "$target/$filename";
+		die "Hash of the local file $filename does not match (file: $sum, requested: $file_hash) - deleting download.\n";
 	};
 }
 
 $download_tool = select_tool();
 
+my $mirror = shift @mirrors;
+
+# Try snapshot original source last
+if ($mirror =~ /snapshot/) {
+	push @mirrors, $mirror;
+	$mirror = shift @mirrors;
+}
+
 while (!-f "$target/$filename") {
-	my $mirror = shift @mirrors;
 	$mirror or die "No more mirrors to try - giving up.\n";
 
 	download($mirror, $url_filename, @mirrors);
 	if (!-f "$target/$filename" && $url_filename ne $filename) {
 		download($mirror, $filename, @mirrors);
 	}
+
+	$mirror = shift @mirrors;
 }
 
 $SIG{INT} = \&cleanup;

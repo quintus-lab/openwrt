@@ -4,6 +4,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "Winchannel WB2000";
@@ -37,14 +38,9 @@
 	leds {
 		compatible = "gpio-leds";
 
-		wlan2g {
-			label = "green:2g";
-			gpios = <&gpio 20 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "phy0tpt";
-		};
-
 		usb {
-			label = "green:usb";
+			function = LED_FUNCTION_USB;
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&gpio 21 GPIO_ACTIVE_HIGH>;
 			trigger-sources = <&hub_port>;
 			linux,default-trigger = "usbport";
@@ -64,16 +60,6 @@
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio 3 GPIO_ACTIVE_LOW>;
 			debounce-interval = <60>;
-		};
-	};
-
-	ath9k-leds {
-		compatible = "gpio-leds";
-
-		wlan {
-			label = "green:5g";
-			gpios = <&ath9k 6 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "phy1tpt";
 		};
 	};
 };
@@ -124,16 +110,18 @@
 				reg = <0xfe0000 0x10000>;
 				read-only;
 
-				compatible = "nvmem-cells";
-				#address-cells = <1>;
-				#size-cells = <1>;
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
 
-				calibration_art_1000: calibration@1000 {
-					reg = <0x1000 0x440>;
-				};
+					calibration_art_1000: calibration@1000 {
+						reg = <0x1000 0x440>;
+					};
 
-				calibration_art_5000: calibration@5000 {
-					reg = <0x5000 0x440>;
+					calibration_art_5000: calibration@5000 {
+						reg = <0x5000 0x440>;
+					};
 				};
 			};
 
@@ -142,12 +130,16 @@
 				reg = <0xff0000 0x10000>;
 				read-only;
 
-				compatible = "nvmem-cells";
-				#address-cells = <1>;
-				#size-cells = <1>;
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
 
-				macaddr_addr_0: macaddr@0 {
-					reg = <0x0 0x6>;
+					macaddr_addr_0: macaddr@0 {
+						compatible = "mac-base";
+						reg = <0x0 0x6>;
+						#nvmem-cell-cells = <1>;
+					};
 				};
 			};
 		};
@@ -160,11 +152,13 @@
 	ath9k: wifi@0,0 {
 		compatible = "pci168c,0030";
 		reg = <0x0000 0 0 0 0>;
-		nvmem-cells = <&macaddr_addr_0>, <&calibration_art_5000>;
+		nvmem-cells = <&macaddr_addr_0 0x10>, <&calibration_art_5000>;
 		nvmem-cell-names = "mac-address", "calibration";
-		mac-address-increment = <0x10>;
-		#gpio-cells = <2>;
-		gpio-controller;
+
+		led {
+			led-sources = <6>;
+			led-active-low;
+		};
 	};
 };
 
@@ -179,8 +173,12 @@
 &wmac {
 	status = "okay";
 
-	nvmem-cells = <&macaddr_addr_0>, <&calibration_art_1000>;
+	nvmem-cells = <&macaddr_addr_0 0>, <&calibration_art_1000>;
 	nvmem-cell-names = "mac-address", "calibration";
+
+	led {
+		led-sources = <20>;
+	};
 };
 
 &mdio0 {
@@ -196,9 +194,8 @@
 
 	pll-data = <0xe000000 0x04000101 0x04001313>;
 
-	nvmem-cells = <&macaddr_addr_0>;
+	nvmem-cells = <&macaddr_addr_0 0x21>;
 	nvmem-cell-names = "mac-address";
-	mac-address-increment = <0x21>;
 
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&phy4>;

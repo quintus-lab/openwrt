@@ -7,15 +7,16 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=glibc
-PKG_VERSION:=2.36
+PKG_VERSION:=2.43
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
-PKG_SOURCE_VERSION:=3aae843e9e9e6a2502e98ff44d2671b20a023f8e
-PKG_MIRROR_HASH:=29bdd6ca699f297de500ea457741d0706d57a69836fa7d45e6cc2cc20484cad4
+PKG_SOURCE_VERSION:=4070d808bea1c077eb7e7d52b52b91cae98205d5
+PKG_MIRROR_HASH:=af972bcdea69ae15851a8ca27820553af1b5825754dfb9bea5a7dc8d316e8003
 PKG_SOURCE_URL:=https://sourceware.org/git/glibc.git
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.xz
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.zst
+PKG_CPE_ID:=cpe:/a:gnu:glibc
 
 HOST_BUILD_DIR:=$(BUILD_DIR_TOOLCHAIN)/$(PKG_SOURCE_SUBDIR)
 CUR_BUILD_DIR:=$(HOST_BUILD_DIR)-$(VARIANT)
@@ -63,8 +64,12 @@ GLIBC_CONFIGURE:= \
 		--$(if $(CONFIG_SOFT_FLOAT),without,with)-fp \
 		  $(if $(CONFIG_PKG_CC_STACKPROTECTOR_REGULAR),--enable-stack-protector=yes) \
 		  $(if $(CONFIG_PKG_CC_STACKPROTECTOR_STRONG),--enable-stack-protector=strong) \
+		  $(if $(CONFIG_PKG_CC_STACKPROTECTOR_ALL),--enable-stack-protector=all) \
 		  $(if $(CONFIG_PKG_RELRO_FULL),--enable-bind-now) \
-		--enable-kernel=5.10.0
+		  $(if $(CONFIG_PKG_FORTIFY_SOURCE_1),--enable-fortify-source=1) \
+		  $(if $(CONFIG_PKG_FORTIFY_SOURCE_2),--enable-fortify-source=2) \
+		  $(if $(CONFIG_PKG_FORTIFY_SOURCE_3),--enable-fortify-source=3) \
+		--enable-kernel=6.6.0
 
 export libc_cv_ssp=no
 export libc_cv_ssp_strong=no
@@ -79,11 +84,6 @@ define Host/SetToolchainInfo
 endef
 
 define Host/Configure
-	[ -f $(HOST_BUILD_DIR)/.autoconf ] || { \
-		cd $(HOST_BUILD_DIR)/; \
-		autoconf --force && \
-		touch $(HOST_BUILD_DIR)/.autoconf; \
-	}
 	mkdir -p $(CUR_BUILD_DIR)
 	( cd $(CUR_BUILD_DIR); rm -f config.cache; \
 		$(GLIBC_CONFIGURE) \

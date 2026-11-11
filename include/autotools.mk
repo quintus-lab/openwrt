@@ -23,7 +23,10 @@ AM_TOOL_PATHS:= \
 	LIBTOOLIZE=$(STAGING_DIR_HOST)/bin/libtoolize \
 	LIBTOOL=$(STAGING_DIR_HOST)/bin/libtool \
 	M4=$(STAGING_DIR_HOST)/bin/m4 \
-	AUTOPOINT=true
+	AUTOPOINT=true \
+	GTKDOCIZE=true
+
+AM_TOOL_PATHS_FAKE:=$(subst = ,=,$(patsubst "%,"$(TRUE)",$(subst =,= ",$(AM_TOOL_PATHS))))
 
 # 1: build dir
 # 2: remove files
@@ -41,7 +44,7 @@ define autoreconf
 				touch NEWS AUTHORS COPYING ABOUT-NLS ChangeLog; \
 				$(AM_TOOL_PATHS) \
 					LIBTOOLIZE='$(STAGING_DIR_HOST)/bin/libtoolize --install' \
-					$(STAGING_DIR_HOST)/bin/autoreconf -v -f -i -s \
+					$(STAGING_DIR_HOST)/bin/autoreconf -v -f -i \
 					$(if $(word 2,$(3)),--no-recursive) \
 					-B $(STAGING_DIR_HOST)/share/aclocal \
 					$(patsubst %,-I %,$(5)) \
@@ -78,6 +81,14 @@ PKG_MACRO_PATHS?=m4
 PKG_REMOVE_FILES?=aclocal.m4
 
 Hooks/InstallDev/Post += libtool_remove_files
+
+# host .la files name other .la files by absolute path, which breaks
+# prebuilt tools used from another directory
+define libtool_remove_files_host
+	$(call libtool_remove_files,$(STAGING_DIR_HOST)/lib)
+endef
+
+Hooks/HostInstall/Post += libtool_remove_files_host
 
 define autoreconf_target
   $(strip $(call autoreconf, \
@@ -123,13 +134,6 @@ ifneq ($(filter libtool-abiver,$(PKG_FIXUP)),)
   Hooks/Configure/Post += set_libtool_abiver
 endif
 
-ifneq ($(filter libtool-ucxx,$(PKG_FIXUP)),)
-  PKG_BUILD_DEPENDS += libtool
- ifeq ($(filter no-autoreconf,$(PKG_FIXUP)),)
-  Hooks/Configure/Pre += autoreconf_target
- endif
-endif
-
 ifneq ($(filter autoreconf,$(PKG_FIXUP)),)
   ifeq ($(filter autoreconf,$(Hooks/Configure/Pre)),)
     Hooks/Configure/Pre += autoreconf_target
@@ -160,12 +164,6 @@ ifneq ($(filter patch-libtool,$(HOST_FIXUP)),)
 endif
 
 ifneq ($(filter libtool,$(HOST_FIXUP)),)
- ifeq ($(filter no-autoreconf,$(HOST_FIXUP)),)
-  Hooks/HostConfigure/Pre += autoreconf_host
- endif
-endif
-
-ifneq ($(filter libtool-ucxx,$(HOST_FIXUP)),)
  ifeq ($(filter no-autoreconf,$(HOST_FIXUP)),)
   Hooks/HostConfigure/Pre += autoreconf_host
  endif

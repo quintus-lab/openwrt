@@ -10,6 +10,7 @@ define Device/Default
   KERNEL_NAME := zImage
   KERNEL := kernel-bin | uImage none
   KERNEL_LOADADDR := 0x80008000
+  DTS_DIR := $(DTS_DIR)/nxp/imx
   IMAGES :=
 endef
 
@@ -21,7 +22,7 @@ define Device/technexion_imx7d-pico-pi
   DEVICE_PACKAGES := kmod-sound-core kmod-sound-soc-imx kmod-sound-soc-imx-sgtl5000 \
 	kmod-can kmod-can-flexcan kmod-can-raw kmod-leds-gpio \
 	kmod-input-touchscreen-edt-ft5x06 kmod-usb-hid kmod-btsdio \
-	kmod-brcmfmac brcmfmac-firmware-4339-sdio cypress-nvram-4339-sdio
+	kmod-brcmfmac brcmfmac-firmware-4339-sdio cypress-nvram-4339-sdio audio-support
   FILESYSTEMS := squashfs
   IMAGES := combined.bin sysupgrade.bin
   IMAGE/combined.bin := append-rootfs | pad-extra 128k | imx-sdcard-raw-uboot

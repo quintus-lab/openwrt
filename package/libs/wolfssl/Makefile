@@ -8,18 +8,21 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wolfssl
-PKG_VERSION:=5.5.4-stable
-PKG_RELEASE:=$(AUTORELEASE)
+PKG_VERSION:=5.9.4
+PKG_REAL_VERSION:=$(PKG_VERSION)-stable
+PKG_RELEASE:=1
 
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=https://github.com/wolfSSL/wolfssl/archive/v$(PKG_VERSION)
-PKG_HASH:=b7ee150e49def77c765bc02aac92ddeb0bebefd4cb12aa263d8f95e405221fb8
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_REAL_VERSION).tar.gz
+PKG_SOURCE_URL:=https://github.com/wolfSSL/wolfssl/archive/v$(PKG_REAL_VERSION)
+PKG_HASH:=7256bfc89b183a75183806c7debfa203443873b0b4a562e1b80d68e01b45ac57
+
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_REAL_VERSION)
 
 PKG_FIXUP:=libtool libtool-abiver
 PKG_INSTALL:=1
-PKG_USE_MIPS16:=0
+PKG_BUILD_FLAGS:=no-mips16 lto
 PKG_BUILD_PARALLEL:=1
-PKG_LICENSE:=GPL-2.0-or-later
+PKG_LICENSE:=GPL-3.0-or-later
 PKG_LICENSE_FILES:=LICENSING COPYING
 PKG_MAINTAINER:=Eneas U de Queiroz <cotequeiroz@gmail.com>
 PKG_CPE_ID:=cpe:/a:wolfssl:wolfssl
@@ -40,7 +43,7 @@ PKG_CONFIG_DEPENDS:=\
 	CONFIG_WOLFSSL_HAS_TLSV13 \
 	CONFIG_WOLFSSL_HAS_WPAS
 
-PKG_ABI_VERSION:=$(patsubst %-stable,%,$(PKG_VERSION)).$(call version_abbrev,$(call confvar,$(PKG_CONFIG_DEPENDS)))
+PKG_ABI_VERSION:=$(PKG_VERSION).$(call version_abbrev,$(call confvar,$(PKG_CONFIG_DEPENDS)))
 
 PKG_CONFIG_DEPENDS+=\
 	CONFIG_PACKAGE_libwolfssl-benchmark \
@@ -51,11 +54,13 @@ PKG_CONFIG_DEPENDS+=\
 
 include $(INCLUDE_DIR)/package.mk
 
+DISABLE_NLS:=
+
 define Package/libwolfssl/Default
   SECTION:=libs
   SUBMENU:=SSL
   CATEGORY:=Libraries
-  URL:=http://www.wolfssl.com/
+  URL:=https://www.wolfssl.com/
 endef
 
 define Package/libwolfssl
@@ -83,7 +88,7 @@ define Package/libwolfsslcpu-crypto
 $(call Package/libwolfssl/Default)
   TITLE:=wolfSSL library with AES CPU instructions
   PROVIDES:=libwolfssl libcyassl
-  DEPENDS:=@((aarch64||x86_64)&&(m||!TARGET_bcm27xx))
+  DEPENDS:=@((aarch64||x86_64||riscv64)&&(m||!TARGET_bcm27xx))
   ABI_VERSION:=$(PKG_ABI_VERSION)
   VARIANT:=cpu-crypto
 endef
@@ -96,12 +101,12 @@ endef
 
 define Package/libwolfsslcpu-crypto/description
 $(call Package/libwolfssl/description)
-This variant uses AES CPU instructions (Intel AESNI or ARMv8 Crypto Extension)
+This variant uses AES CPU instructions (Intel AESNI, ARMv8 Crypto Extension or RISC-V ASM)
 endef
 
 define Package/libwolfsslcpu-crypto/config
-    if TARGET_armvirt && PACKAGE_libwolfsslcpu-crypto = y
-	comment "You are about to build libwolfsslcpu-crypto into an armvirt_64 image."
+    if TARGET_armsr && PACKAGE_libwolfsslcpu-crypto = y
+	comment "You are about to build libwolfsslcpu-crypto into an armsr_64 image."
 	comment "Ensure all of your installation targets support the Crypto Extension. "
 	comment "Look for the 'aes' feature in /proc/cpuinfo. This library does not do "
 	comment "run-time detection and will crash if the CPU does not support it.     "
@@ -118,11 +123,8 @@ endef
 TARGET_CFLAGS += \
 	$(FPIC) \
 	-fomit-frame-pointer \
-	-flto \
 	-DFP_MAX_BITS=8192 \
 	$(if $(CONFIG_WOLFSSL_ALT_NAMES),-DWOLFSSL_ALT_NAMES)
-
-TARGET_LDFLAGS += -flto
 
 # --enable-stunnel needed for OpenSSL API compatibility bits
 CONFIGURE_ARGS += \
@@ -151,6 +153,33 @@ CONFIGURE_ARGS += \
 	--$(if $(CONFIG_WOLFSSL_HAS_ECC448),enable,disable)-curve448 \
 	--$(if $(CONFIG_WOLFSSL_HAS_OPENVPN),enable,disable)-openvpn
 
+define Package/libwolfsslcpu-crypto/preinst-aarch64
+#!/bin/sh
+exec >&2
+printf "[libwolfsslcpu-crypto] Checking for Arm v8-A Cryptographic Extension support: "
+if [ -n "$${IPKG_INSTROOT}" ]; then
+    printf "...[offline]... "
+    eval "$$(grep '^DISTRIB_TARGET=' "$${IPKG_INSTROOT}/etc/openwrt_release")"
+    echo "$${DISTRIB_TARGET}" | grep '^bcm27xx/.*' > /dev/null && {
+	echo "not supported"
+	echo "Error: Target $${DISTRIB_TARGET} does not support Arm Cryptographic Extension."
+	echo "Install the regular libwolfssl package instead of libwolfsslcpu-crypto."
+	exit 1
+    }
+else
+    grep -q '^Features.*\baes\b' /proc/cpuinfo || {
+	echo "not supported"
+	echo "Error: Arm v8-A Cryptographic Extension not supported."
+	echo "Install the regular libwolfssl package instead of libwolfsslcpu-crypto."
+	echo "Contents of /proc/cpuinfo:"
+	cat /proc/cpuinfo
+	exit 1
+    }
+fi
+echo OK
+exit 0
+endef
+
 ifeq ($(BUILD_VARIANT),regular)
 CONFIGURE_ARGS += \
 	--$(if $(CONFIG_WOLFSSL_HAS_AFALG),enable,disable)-afalg \
@@ -160,11 +189,11 @@ CONFIGURE_ARGS += \
 else ifdef CONFIG_aarch64
     CONFIGURE_ARGS += --enable-armasm
     TARGET_CFLAGS:=$(TARGET_CFLAGS:-mcpu%=-mcpu%+crypto)
-    WOLFSSL_NOASM_REGEX:=^bcm27xx/.*
-    Package/libwolfsslcpu-crypto/preinst=\
-	$(subst @@WOLFSSL_NOASM_REGEX@@,$(WOLFSSL_NOASM_REGEX),$(file <preinst.arm-ce))
+    Package/libwolfsslcpu-crypto/preinst=$(Package/libwolfsslcpu-crypto/preinst-aarch64)
 else ifdef CONFIG_TARGET_x86_64
 	CONFIGURE_ARGS += --enable-intelasm
+else ifdef CONFIG_riscv64
+	CONFIGURE_ARGS += --enable-riscv-asm
 endif
 
 ifeq ($(CONFIG_WOLFSSL_HAS_OCSP),y)

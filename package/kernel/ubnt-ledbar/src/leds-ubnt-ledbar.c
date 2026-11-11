@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/gpio/consumer.h>
 
 /**
@@ -145,61 +144,47 @@ UBNT_LEDBAR_CONTROL_RGBS(green);
 UBNT_LEDBAR_CONTROL_RGBS(blue);
 
 
-static int ubnt_ledbar_init_led(struct device_node *np, struct ubnt_ledbar *ledbar,
+static int ubnt_ledbar_init_led(struct fwnode_handle *fw, struct ubnt_ledbar *ledbar,
 				struct led_classdev *led_cdev)
 {
 	struct led_init_data init_data = {};
-	int ret;
 
-	if (!np)
+	if (!fw)
 		return 0;
 
-	init_data.fwnode = of_fwnode_handle(np);
+	init_data.fwnode = fw;
 
 	led_cdev->max_brightness = UBNT_LEDBAR_MAX_BRIGHTNESS;
 
-	ret = devm_led_classdev_register_ext(&ledbar->client->dev, led_cdev,
-					     &init_data);
-	if (ret)
-		dev_err(&ledbar->client->dev, "led register err: %d\n", ret);
-
-	return ret;
+	return devm_led_classdev_register_ext(&ledbar->client->dev, led_cdev, &init_data);
 }
 
-
-static int ubnt_ledbar_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int ubnt_ledbar_probe(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device *dev = &client->dev;
 	struct ubnt_ledbar *ledbar;
-	int ret;
+	int err;
 
-	ledbar = devm_kzalloc(&client->dev, sizeof(*ledbar), GFP_KERNEL);
+	ledbar = devm_kzalloc(dev, sizeof(*ledbar), GFP_KERNEL);
 	if (!ledbar)
 		return -ENOMEM;
 
-	ledbar->enable_gpio = devm_gpiod_get(&client->dev, "enable", GPIOD_OUT_LOW);
+	ledbar->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
+	if (IS_ERR(ledbar->enable_gpio))
+		return dev_err_probe(dev, PTR_ERR(ledbar->enable_gpio), "Failed to get enable gpio");
 
-	if (IS_ERR(ledbar->enable_gpio)) {
-		ret = PTR_ERR(ledbar->enable_gpio);
-		dev_err(&client->dev, "Failed to get enable gpio: %d\n", ret);
-		return ret;
-	}
-
-	ledbar->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_LOW);
-
-	if (IS_ERR(ledbar->reset_gpio)) {
-		ret = PTR_ERR(ledbar->reset_gpio);
-		dev_err(&client->dev, "Failed to get reset gpio: %d\n", ret);
-		return ret;
-	}
+	ledbar->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(ledbar->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(ledbar->reset_gpio), "Failed to get reset gpio");
 
 	ledbar->led_count = 1;
-	of_property_read_u32(np, "led-count", &ledbar->led_count);
+	device_property_read_u32(dev, "led-count", &ledbar->led_count);
 
 	ledbar->client = client;
 
-	mutex_init(&ledbar->lock);
+	err = devm_mutex_init(&client->dev, &ledbar->lock);
+	if (err)
+		return err;
 
 	i2c_set_clientdata(client, ledbar);
 
@@ -207,24 +192,15 @@ static int ubnt_ledbar_probe(struct i2c_client *client,
 	ubnt_ledbar_reset(ledbar);
 
 	ledbar->led_red.brightness_set_blocking = ubnt_ledbar_set_red_brightness;
-	ubnt_ledbar_init_led(of_get_child_by_name(np, "red"), ledbar, &ledbar->led_red);
+	ubnt_ledbar_init_led(device_get_named_child_node(dev, "red"), ledbar, &ledbar->led_red);
 
 	ledbar->led_green.brightness_set_blocking = ubnt_ledbar_set_green_brightness;
-	ubnt_ledbar_init_led(of_get_child_by_name(np, "green"), ledbar, &ledbar->led_green);
+	ubnt_ledbar_init_led(device_get_named_child_node(dev, "green"), ledbar, &ledbar->led_green);
 
 	ledbar->led_blue.brightness_set_blocking = ubnt_ledbar_set_blue_brightness;
-	ubnt_ledbar_init_led(of_get_child_by_name(np, "blue"), ledbar, &ledbar->led_blue);
+	ubnt_ledbar_init_led(device_get_named_child_node(dev, "blue"), ledbar, &ledbar->led_blue);
 
 	return ubnt_ledbar_apply_state(ledbar);
-}
-
-static int ubnt_ledbar_remove(struct i2c_client *client)
-{
-	struct ubnt_ledbar *ledbar = i2c_get_clientdata(client);
-
-	mutex_destroy(&ledbar->lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id ubnt_ledbar_id[] = {
@@ -245,7 +221,6 @@ static struct i2c_driver ubnt_ledbar_driver = {
 		.of_match_table = of_ubnt_ledbar_match,
 	},
 	.probe		= ubnt_ledbar_probe,
-	.remove		= ubnt_ledbar_remove,
 	.id_table	= ubnt_ledbar_id,
 };
 module_i2c_driver(ubnt_ledbar_driver);

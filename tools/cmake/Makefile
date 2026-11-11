@@ -7,15 +7,15 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=cmake
-PKG_VERSION:=3.25.1
+PKG_VERSION:=4.4.3
 PKG_VERSION_MAJOR:=$(word 1,$(subst ., ,$(PKG_VERSION))).$(word 2,$(subst ., ,$(PKG_VERSION)))
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_CPE_ID:=cpe:/a:kitware:cmake
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://github.com/Kitware/CMake/releases/download/v$(PKG_VERSION)/ \
 		https://cmake.org/files/v$(PKG_VERSION_MAJOR)/
-PKG_HASH:=1c511d09516af493694ed9baf13c55947a36389674d657a2d5e0ccedc6b291d8
+PKG_HASH:=c46400618b4f1f2b43507f24fb22f3ae830c3416cf23b776e16e1d413aa892f0
 
 HOST_BUILD_PARALLEL:=1
 HOST_CONFIGURE_PARALLEL:=1
@@ -30,6 +30,7 @@ HOST_CONFIGURE_VARS += \
 	MAKE="$(STAGING_DIR_HOST)/bin/ninja"
 
 HOST_CONFIGURE_ARGS := \
+	--no-debugger \
 	$(if $(MAKE_JOBSERVER),--parallel="$(MAKE_JOBSERVER)") \
 	--prefix="$(STAGING_DIR_HOST)" \
 	--system-expat \
@@ -38,7 +39,14 @@ HOST_CONFIGURE_ARGS := \
 	--system-zstd \
 	--generator=Ninja
 
-HOST_LDFLAGS += -Wl,-rpath,$(STAGING_DIR_HOST)/lib
+CMAKE_HOST_OPTIONS = \
+	-DZSTD_INCLUDE_DIR="$(STAGING_DIR_HOST)/include" \
+	-DZSTD_LIBRARY="$(STAGING_DIR_HOST)/lib/libzstd.a" \
+	-DBUILD_TESTING=OFF
+
+define Host/Configure
+	$(call Host/Configure/Default,-- $(CMAKE_HOST_OPTIONS))
+endef
 
 define Host/Compile/Default
 	+$(NINJA) -C $(HOST_BUILD_DIR) $(1)

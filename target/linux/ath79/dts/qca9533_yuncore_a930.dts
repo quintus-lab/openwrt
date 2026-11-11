@@ -36,12 +36,6 @@
 			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
-
-		wlan2g {
-			label = "blue:wlan2g";
-			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "phy0tpt";
-		};
 	};
 };
 
@@ -75,10 +69,28 @@
 				reg = <0x050000 0xfa0000>;
 			};
 
-			art: partition@ff0000 {
+			partition@ff0000 {
 				label = "art";
 				reg = <0xff0000 0x010000>;
 				read-only;
+
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					macaddr_art_0: macaddr@0 {
+						reg = <0x0 0x6>;
+					};
+
+					macaddr_art_6: macaddr@6 {
+						reg = <0x6 0x6>;
+					};
+
+					cal_art_1000: calibration@1000 {
+						reg = <0x1000 0x440>;
+					};
+				};
 			};
 		};
 	};
@@ -100,19 +112,12 @@
 
 &wmac {
 	status = "okay";
-	mtd-cal-data = <&art 0x1000>;
-};
 
-&art {
-	compatible = "nvmem-cells";
-	#address-cells = <1>;
-	#size-cells = <1>;
+	nvmem-cells = <&cal_art_1000>;
+	nvmem-cell-names = "calibration";
 
-	macaddr_art_0: macaddr@0 {
-		reg = <0x0 0x6>;
-	};
-
-	macaddr_art_6: macaddr@6 {
-		reg = <0x6 0x6>;
+	led {
+		led-sources = <13>;
+		led-active-low;
 	};
 };

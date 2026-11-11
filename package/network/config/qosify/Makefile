@@ -11,10 +11,10 @@ include $(INCLUDE_DIR)/kernel.mk
 PKG_NAME:=qosify
 PKG_SOURCE_URL=$(PROJECT_GIT)/project/qosify.git
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_DATE:=2022-04-08
-PKG_SOURCE_VERSION:=ef82defaae26619e5b2ebddfdd86e9de61c399f1
-PKG_MIRROR_HASH:=8e4ca65d23a85aad774af51dc62cfaa4615111ffd2c7922258ac8f026a62b013
-PKG_RELEASE:=$(AUTORELEASE)
+PKG_SOURCE_DATE:=2026-10-15
+PKG_SOURCE_VERSION:=143d71d2479176ad5fdb0f9ce191affa2dc9640d
+PKG_MIRROR_HASH:=23f337614c2a1b806b4e34c20c8f742b41bd47e7da3d7085584216d4a65f15d9
+PKG_RELEASE:=1
 
 PKG_LICENSE:=GPL-2.0
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
@@ -31,7 +31,7 @@ define Package/qosify
   SECTION:=utils
   CATEGORY:=Base system
   TITLE:=A simple QoS solution based eBPF + CAKE
-  DEPENDS:=+libbpf +libubox +libubus +libnl-tiny +kmod-sched-cake +kmod-sched-bpf +kmod-ifb +tc $(BPF_DEPENDS)
+  DEPENDS:=+libbpf +libubox +libubus +libnl-tiny +kmod-sched-cake +kmod-sched-flower +kmod-sched-bpf +kmod-ifb +tc $(BPF_DEPENDS)
 endef
 
 TARGET_CFLAGS += \
